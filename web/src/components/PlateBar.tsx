@@ -76,9 +76,9 @@ export function PlateBar({ ws }: { ws: WorkspaceAPI }) {
         <span className="mono">
           Bed: {bw}×{bd}×{bh} mm
         </span>
-        <span className="mono">{ws.activePlate.objects.length} objects · {totalTris.toLocaleString()} tris</span>
+        <span className="mono plate-meta-tris">{ws.activePlate.objects.length} obj · {totalTris.toLocaleString()} tris</span>
         {ws.selectedObject && (
-          <span style={{ color: "var(--text-secondary)" }}>
+          <span className="plate-meta-selected" style={{ color: "var(--text-secondary)" }}>
             Selected: <strong>{ws.selectedObject.name}</strong>
           </span>
         )}

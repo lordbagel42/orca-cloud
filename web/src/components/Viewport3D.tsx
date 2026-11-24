@@ -1184,7 +1184,7 @@ export function Viewport3D({
     : null;
   const ctxLeft = ctxMenu ? Math.max(8, Math.min(ctxMenu.x, window.innerWidth - 238)) : 0;
   const ctxTop = ctxMenu
-    ? Math.max(8, Math.min(ctxMenu.y, window.innerHeight - (ctxObject ? 450 : 340)))
+    ? Math.max(8, Math.min(ctxMenu.y, window.innerHeight - (ctxObject ? 490 : 340)))
     : 0;
 
   return (
@@ -1252,7 +1252,7 @@ export function Viewport3D({
         {ws.tab === "prepare" && (
           <button
             className={`camera-btn ${ws.wireframe ? "active" : ""}`}
-            aria-label="Toggle wireframe (W)"
+            aria-label="Wire — toggle wireframe (W)"
             onClick={() => ws.setWireframe((v) => !v)}
           >
             Wire
