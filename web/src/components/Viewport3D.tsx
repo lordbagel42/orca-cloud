@@ -523,7 +523,14 @@ export function Viewport3D({
 
     let downXY = { x: 0, y: 0 };
     let rightDownXY = { x: 0, y: 0 };
+    let rightMaxMoved = 0;
+    let rightPressActive = false;
+    let ctrlLeftPressActive = false;
+    let ctrlLeftMaxMoved = 0;
     let activeTouchPointers = new Set<number>();
+    let hadMultiTouch = false;
+    let lastMultiTouchAt = 0;
+    let lastWheelAt = 0;
     let longPressTimer: number | null = null;
     let longPressTriggered = false;
 
@@ -552,6 +559,11 @@ export function Viewport3D({
       setCtxMenu({ x: clientX, y: clientY, objectId: null });
     };
 
+    const onWheel = () => {
+      lastWheelAt = Date.now();
+      clearLongPress();
+    };
+
     const onPointerDown = (e: PointerEvent) => {
       setCtxMenu(null);
       setSubmenu(null);
@@ -561,12 +573,19 @@ export function Viewport3D({
 
       if (e.pointerType === "touch") {
         activeTouchPointers.add(e.pointerId);
+        if (activeTouchPointers.size > 1) {
+          hadMultiTouch = true;
+          lastMultiTouchAt = Date.now();
+          clearLongPress();
+          return;
+        }
         if (activeTouchPointers.size === 1) {
+          hadMultiTouch = false;
           const cx = e.clientX;
           const cy = e.clientY;
           longPressTimer = window.setTimeout(() => {
             longPressTimer = null;
-            if (activeTouchPointers.size !== 1 || isPaintingRef.current || transform.dragging) return;
+            if (activeTouchPointers.size !== 1 || hadMultiTouch || isPaintingRef.current || transform.dragging) return;
             longPressTriggered = true;
             if (typeof navigator !== "undefined" && "vibrate" in navigator) {
               try {
@@ -580,7 +599,16 @@ export function Viewport3D({
         }
       }
 
+      // Defer context menu until pointerup so macOS two-finger drag / right-drag panning never opens the menu on press
       if (e.button === 2) {
+        rightPressActive = true;
+        rightMaxMoved = 0;
+        rightDownXY = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      if (e.button === 0 && e.ctrlKey && e.pointerType !== "touch") {
+        ctrlLeftPressActive = true;
+        ctrlLeftMaxMoved = 0;
         rightDownXY = { x: e.clientX, y: e.clientY };
         return;
       }
@@ -601,6 +629,14 @@ export function Viewport3D({
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      if (rightPressActive) {
+        const d = Math.hypot(e.clientX - rightDownXY.x, e.clientY - rightDownXY.y);
+        if (d > rightMaxMoved) rightMaxMoved = d;
+      }
+      if (ctrlLeftPressActive) {
+        const d = Math.hypot(e.clientX - rightDownXY.x, e.clientY - rightDownXY.y);
+        if (d > ctrlLeftMaxMoved) ctrlLeftMaxMoved = d;
+      }
       if (longPressTimer !== null && Math.hypot(e.clientX - downXY.x, e.clientY - downXY.y) > 8) {
         clearLongPress();
       }
@@ -610,13 +646,49 @@ export function Viewport3D({
     };
 
     const onPointerCancel = (e: PointerEvent) => {
-      activeTouchPointers.delete(e.pointerId);
+      if (e.pointerType === "touch") {
+        activeTouchPointers.delete(e.pointerId);
+        if (activeTouchPointers.size === 0) {
+          hadMultiTouch = false;
+        }
+      }
+      rightPressActive = false;
+      ctrlLeftPressActive = false;
       clearLongPress();
     };
 
     const onPointerUp = (e: PointerEvent) => {
-      activeTouchPointers.delete(e.pointerId);
+      const wasMultiTouch = hadMultiTouch || activeTouchPointers.size > 1;
+      if (e.pointerType === "touch") {
+        activeTouchPointers.delete(e.pointerId);
+        if (activeTouchPointers.size === 0) {
+          if (hadMultiTouch) lastMultiTouchAt = Date.now();
+          hadMultiTouch = false;
+        }
+      }
       clearLongPress();
+
+      // Open right-click menu only on a clean release without dragging (handles macOS & Windows/Linux identically)
+      if (e.button === 2 && rightPressActive) {
+        const d = Math.hypot(e.clientX - rightDownXY.x, e.clientY - rightDownXY.y);
+        const moved = Math.max(rightMaxMoved, d);
+        rightPressActive = false;
+        if (moved <= 6 && !wasMultiTouch && Date.now() - lastMultiTouchAt > 350 && Date.now() - lastWheelAt > 250) {
+          openContextMenuAt(e.clientX, e.clientY, e);
+        }
+        return;
+      }
+      if (e.button === 0 && ctrlLeftPressActive) {
+        const d = Math.hypot(e.clientX - rightDownXY.x, e.clientY - rightDownXY.y);
+        const moved = Math.max(ctrlLeftMaxMoved, d);
+        ctrlLeftPressActive = false;
+        if (moved <= 6 && !wasMultiTouch && Date.now() - lastWheelAt > 250) {
+          openContextMenuAt(e.clientX, e.clientY, e);
+        }
+        return;
+      }
+
+      if (wasMultiTouch) return;
       if (longPressTriggered) {
         longPressTriggered = false;
         return;
@@ -680,12 +752,25 @@ export function Viewport3D({
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      // Only open context menu on a clean right-click, not after right-drag panning
-      const rightMoved = Math.hypot(e.clientX - rightDownXY.x, e.clientY - rightDownXY.y);
-      if (rightMoved > 6) return;
-      openContextMenuAt(e.clientX, e.clientY, e);
+      // Always suppress native context menu; pointer right-clicks and macOS two-finger clicks open on clean pointerup
+      // so two-finger / right-button camera drags never pop open the menu on press.
+      if (
+        rightPressActive ||
+        ctrlLeftPressActive ||
+        activeTouchPointers.size > 0 ||
+        hadMultiTouch ||
+        Date.now() - lastMultiTouchAt < 500 ||
+        Date.now() - lastWheelAt < 350
+      ) {
+        return;
+      }
+      // Keyboard ContextMenu / Shift+F10 (no pointer button involved)
+      if (e.button !== 2 && !e.ctrlKey) {
+        openContextMenuAt(e.clientX, e.clientY, e);
+      }
     };
 
+    renderer.domElement.addEventListener("wheel", onWheel, { passive: true });
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
@@ -752,6 +837,7 @@ export function Viewport3D({
         vgRendererRef.current.renderer.dispose();
         vgRendererRef.current = null;
       }
+      renderer.domElement.removeEventListener("wheel", onWheel);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
