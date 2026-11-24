@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 import unittest
+import urllib.parse
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -194,6 +195,49 @@ class BackendServerTest(unittest.TestCase):
         status, oriented = http_json(f"{self.base}/v2/mesh/auto-orient", "POST", stl, "model/stl")
         self.assertEqual(status, 200)
         self.assertGreater(len(oriented), 84)
+
+    def test_a1_mini_and_p1s_compatible_profiles_and_assets(self):
+        # Bambu Lab A1 mini 0.4 nozzle
+        q_a1m = urllib.parse.urlencode({"vendor": "BBL", "machine": "Bambu Lab A1 mini 0.4 nozzle"})
+        status, a1m = http_json(f"{self.base}/v2/profiles/compatible?{q_a1m}")
+        self.assertEqual(status, 200)
+        self.assertEqual(a1m["build_volume_mm"], [180.0, 180.0, 180.0])
+        self.assertEqual(a1m["machine_model"]["bed_model"], "bbl-3dp-A1M.stl")
+        self.assertEqual(a1m["machine_model"]["bed_model_url"], "/v2/assets/BBL/bbl-3dp-A1M.stl")
+        self.assertEqual(a1m["machine_model"]["bed_texture_url"], "/v2/assets/BBL/bbl-3dp-logo.svg")
+        self.assertEqual(a1m["machine_model"]["hotend_model_url"], "/v2/assets/BBL/bbl-3dp-hotend.stl")
+        self.assertEqual(a1m["default_print_profile"], "0.20mm Standard @BBL A1M")
+        self.assertGreaterEqual(len(a1m["processes"]), 10)
+        self.assertGreaterEqual(len(a1m["filaments"]), 150)
+        self.assertEqual([v["nozzle_diameter"] for v in a1m["nozzle_variants"]], ["0.2", "0.4", "0.6", "0.8"])
+
+        # Bambu Lab P1S 0.4 nozzle
+        q_p1s = urllib.parse.urlencode({"vendor": "BBL", "machine": "Bambu Lab P1S 0.4 nozzle"})
+        status, p1s = http_json(f"{self.base}/v2/profiles/compatible?{q_p1s}")
+        self.assertEqual(status, 200)
+        self.assertEqual(p1s["build_volume_mm"], [256.0, 256.0, 250.0])
+        self.assertEqual(p1s["machine_model"]["bed_model"], "bbl-3dp-X1.stl")
+        self.assertEqual(p1s["machine_model"]["bed_model_url"], "/v2/assets/BBL/bbl-3dp-X1.stl")
+        self.assertEqual(p1s["bed_exclude_area_polygon"], [[0.0, 0.0], [18.0, 0.0], [18.0, 28.0], [0.0, 28.0]])
+        self.assertEqual(p1s["default_print_profile"], "0.20mm Standard @BBL X1C")
+        self.assertGreaterEqual(len(p1s["processes"]), 10)
+        self.assertGreaterEqual(len(p1s["filaments"]), 200)
+        self.assertEqual([v["nozzle_diameter"] for v in p1s["nozzle_variants"]], ["0.2", "0.4", "0.6", "0.8"])
+
+        # Fetch official STL & SVG assets
+        for url in [
+            "/v2/assets/BBL/bbl-3dp-A1M.stl",
+            "/v2/assets/BBL/bbl-3dp-X1.stl",
+            "/v2/assets/BBL/bbl-3dp-hotend.stl",
+            "/v2/assets/BBL/bbl-3dp-logo.svg",
+        ]:
+            status, body = http_json(f"{self.base}{url}")
+            self.assertEqual(status, 200)
+            self.assertGreater(len(body), 1000)
+
+        # Reject path traversal
+        status, _ = http_json(f"{self.base}/v2/assets/BBL/..%2Fserver.py")
+        self.assertEqual(status, 404)
 
 
 if __name__ == "__main__":

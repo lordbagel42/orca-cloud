@@ -78,9 +78,7 @@ def values_equivalent(a: Any, b: Any) -> bool:
     return False
 
 
-def parse_build_volume(printer_settings: dict[str, Any]) -> tuple[list[float], list[list[float]]]:
-    """Extract [width, depth, height] in mm and bed polygon from printable_area & printable_height."""
-    raw_area = printer_settings.get("printable_area")
+def parse_polygon_list(raw_area: Any) -> list[list[float]]:
     polygon: list[list[float]] = []
     if isinstance(raw_area, list):
         for point in raw_area:
@@ -92,6 +90,12 @@ def parse_build_volume(printer_settings: dict[str, Any]) -> tuple[list[float], l
                         polygon.append([round(x, 3), round(y, 3)])
                 except ValueError:
                     pass
+    return polygon
+
+
+def parse_build_volume(printer_settings: dict[str, Any]) -> tuple[list[float], list[list[float]]]:
+    """Extract [width, depth, height] in mm and bed polygon from printable_area & printable_height."""
+    polygon = parse_polygon_list(printer_settings.get("printable_area"))
     if len(polygon) >= 3:
         xs = [p[0] for p in polygon]
         ys = [p[1] for p in polygon]
@@ -117,16 +121,19 @@ def parse_build_volume(printer_settings: dict[str, Any]) -> tuple[list[float], l
 
 class ProfileCatalog:
     def __init__(self, root: Path = ROOT):
+        self.root = root
+        self.assets_dir = root / "assets"
         gz_path = root / "catalog.json.gz"
         defaults_path = root / "native_defaults.json"
         if gz_path.is_file():
             with gzip.open(gz_path, "rb") as fh:
                 raw = json.loads(fh.read().decode("utf-8"))
         else:
-            raw = {"provenance": {}, "vendors": {}, "profiles": {}}
+            raw = {"provenance": {}, "vendors": {}, "machine_models": {}, "profiles": {}}
 
         self.provenance: dict[str, Any] = raw.get("provenance", {})
         self.vendors: dict[str, dict[str, Any]] = raw.get("vendors", {})
+        self.machine_models: dict[str, dict[str, Any]] = raw.get("machine_models", {})
         self.profiles: dict[str, dict[str, Any]] = raw.get("profiles", {})
 
         # Secondary index by (kind, name) for cross-vendor inheritance fallback
@@ -160,6 +167,7 @@ class ProfileCatalog:
             if v.get("classification") == "native_exportable" and v.get("native_default") is not None
         }
         self._flatten_cache: dict[tuple[str, str, str], dict[str, Any]] = {}
+        self._compatible_cache: dict[tuple[str, str], dict[str, Any]] = {}
 
     def list_vendors(self) -> list[dict[str, Any]]:
         return sorted(self.vendors.values(), key=lambda v: v["id"].lower())
@@ -284,6 +292,49 @@ class ProfileCatalog:
         self._flatten_cache[cache_key] = merged
         return dict(merged)
 
+    def _asset_url(self, vendor: str, filename: str) -> str | None:
+        if not filename:
+            return None
+        safe_name = Path(filename).name
+        if not safe_name or safe_name != filename:
+            return None
+        candidate = self.assets_dir / vendor / safe_name
+        if candidate.is_file():
+            return f"/v2/assets/{vendor}/{safe_name}"
+        return None
+
+    def get_machine_model_info(
+        self, vendor: str, printer_model: str | None, flattened_machine: dict[str, Any]
+    ) -> dict[str, Any]:
+        model_name = printer_model or str(flattened_machine.get("printer_model") or "")
+        raw_model = self.machine_models.get(f"{vendor}/{model_name}", {})
+        bed_model = str(raw_model.get("bed_model") or "")
+        bed_texture = str(raw_model.get("bed_texture") or "")
+        hotend_model = str(raw_model.get("hotend_model") or "")
+        if not hotend_model and vendor == "BBL":
+            hotend_model = "bbl-3dp-hotend.stl"
+
+        nozzles = [n.strip() for n in str(raw_model.get("nozzle_diameter") or "").split(";") if n.strip()]
+        default_materials = [m.strip() for m in str(raw_model.get("default_materials") or "").split(";") if m.strip()]
+        not_supported = [b.strip() for b in str(raw_model.get("not_support_bed_type") or "").split(";") if b.strip()]
+
+        return {
+            "name": model_name,
+            "vendor": vendor,
+            "family": str(raw_model.get("family") or ""),
+            "model_id": str(raw_model.get("model_id") or ""),
+            "bed_model": bed_model or None,
+            "bed_texture": bed_texture or None,
+            "hotend_model": hotend_model or None,
+            "bed_model_url": self._asset_url(vendor, bed_model),
+            "bed_texture_url": self._asset_url(vendor, bed_texture),
+            "hotend_model_url": self._asset_url(vendor, hotend_model),
+            "default_bed_type": str(raw_model.get("default_bed_type") or "Textured PEI Plate"),
+            "not_support_bed_types": not_supported,
+            "nozzle_diameters": nozzles,
+            "default_materials": default_materials,
+        }
+
     def get_profile_detail(self, vendor: str, kind: str, name: str) -> dict[str, Any]:
         entry = self._find_entry(vendor, kind, name)
         if not entry:
@@ -301,7 +352,148 @@ class ProfileCatalog:
             bv, poly = parse_build_volume(flattened)
             info["build_volume_mm"] = bv
             info["printable_area_polygon"] = poly
+            info["bed_exclude_area_polygon"] = parse_polygon_list(flattened.get("bed_exclude_area"))
+            info["machine_model"] = self.get_machine_model_info(
+                entry["vendor"], flattened.get("printer_model"), flattened
+            )
         return info
+
+    def get_compatible_profiles(self, vendor: str, machine_name: str) -> dict[str, Any]:
+        entry = self._find_entry(vendor, "machine", machine_name)
+        if not entry:
+            raise KeyError(f"Machine profile not found: {vendor}/{machine_name}")
+        real_vendor = entry["vendor"]
+        real_name = entry["name"]
+        cache_key = (real_vendor, real_name)
+        if cache_key in self._compatible_cache:
+            return self._compatible_cache[cache_key]
+
+        flattened = self.flatten_profile(real_vendor, "machine", real_name)
+        bv, poly = parse_build_volume(flattened)
+        exclude_poly = parse_polygon_list(flattened.get("bed_exclude_area"))
+        printer_model = str(flattened.get("printer_model") or "")
+        printer_variant = str(flattened.get("printer_variant") or "")
+        machine_model = self.get_machine_model_info(real_vendor, printer_model, flattened)
+        recommended_materials = set(machine_model.get("default_materials", []))
+
+        raw_default_print = flattened.get("default_print_profile")
+        default_print = (
+            raw_default_print[0] if isinstance(raw_default_print, list) and raw_default_print
+            else (raw_default_print if isinstance(raw_default_print, str) else "")
+        )
+        raw_default_fil = flattened.get("default_filament_profile")
+        default_filament = (
+            raw_default_fil[0] if isinstance(raw_default_fil, list) and raw_default_fil
+            else (raw_default_fil if isinstance(raw_default_fil, str) else "")
+        )
+
+        # Find all nozzle variants belonging to the same printer_model
+        nozzle_variants: list[dict[str, Any]] = []
+        if printer_model:
+            for m in self._list_by_kind["machine"]:
+                if m["vendor"] != real_vendor or not m.get("instantiation"):
+                    continue
+                try:
+                    mf = self.flatten_profile(m["vendor"], "machine", m["name"])
+                except KeyError:
+                    continue
+                if str(mf.get("printer_model") or "") == printer_model:
+                    nd_raw = mf.get("nozzle_diameter", ["0.4"])
+                    nd = str(nd_raw[0] if isinstance(nd_raw, list) and nd_raw else nd_raw)
+                    nozzle_variants.append({
+                        "vendor": m["vendor"],
+                        "name": m["name"],
+                        "nozzle_diameter": nd,
+                    })
+            nozzle_variants.sort(key=lambda x: (float(x["nozzle_diameter"]) if x["nozzle_diameter"].replace(".", "", 1).isdigit() else 99.0, x["name"]))
+
+        # Compatible processes (same vendor)
+        processes: list[dict[str, Any]] = []
+        for p in self._list_by_kind["process"]:
+            if p["vendor"] != real_vendor or not p.get("instantiation"):
+                continue
+            try:
+                pf = self.flatten_profile(p["vendor"], "process", p["name"])
+            except KeyError:
+                continue
+            cp = pf.get("compatible_printers")
+            if isinstance(cp, list) and cp:
+                if real_name not in cp:
+                    continue
+            else:
+                # Some vendors leave compatible_printers empty; match only if printer_model appears or no explicit filter exists
+                if cp is not None:
+                    continue
+            lh_raw = pf.get("layer_height", "0.2")
+            try:
+                lh = float(lh_raw[0] if isinstance(lh_raw, list) else lh_raw)
+            except (ValueError, TypeError):
+                lh = 0.2
+            processes.append({
+                "vendor": p["vendor"],
+                "name": p["name"],
+                "layer_height": lh,
+                "is_default": p["name"] == default_print,
+            })
+        processes.sort(key=lambda x: (x["layer_height"], x["name"]))
+
+        # Compatible filaments (same vendor + OrcaFilamentLibrary)
+        filaments: list[dict[str, Any]] = []
+        for fl in self._list_by_kind["filament"]:
+            if fl["vendor"] not in (real_vendor, "OrcaFilamentLibrary") or not fl.get("instantiation"):
+                continue
+            try:
+                ff = self.flatten_profile(fl["vendor"], "filament", fl["name"])
+            except KeyError:
+                continue
+            cp = ff.get("compatible_printers")
+            if isinstance(cp, list) and cp:
+                if real_name not in cp:
+                    continue
+            elif fl["vendor"] != real_vendor:
+                continue
+            elif cp is not None:
+                continue
+
+            def _first_str(val: Any, fallback: str = "") -> str:
+                if isinstance(val, list) and val:
+                    return str(val[0])
+                return str(val) if val is not None else fallback
+
+            filaments.append({
+                "vendor": fl["vendor"],
+                "name": fl["name"],
+                "filament_type": _first_str(ff.get("filament_type"), "PLA"),
+                "filament_vendor": _first_str(ff.get("filament_vendor"), fl["vendor"]),
+                "nozzle_temp": _first_str(ff.get("nozzle_temperature"), "220"),
+                "bed_temp": _first_str(
+                    ff.get("textured_plate_temp") or ff.get("hot_plate_temp") or ff.get("cool_plate_temp"),
+                    "55",
+                ),
+                "is_default": fl["name"] == default_filament,
+                "is_recommended": fl["name"] in recommended_materials or fl["name"] == default_filament,
+            })
+        filaments.sort(key=lambda x: (0 if x["is_default"] else (1 if x["is_recommended"] else 2), x["filament_type"], x["name"]))
+
+        result = {
+            "vendor": real_vendor,
+            "machine": real_name,
+            "printer_model": printer_model,
+            "printer_variant": printer_variant,
+            "build_volume_mm": bv,
+            "printable_area_polygon": poly,
+            "bed_exclude_area_polygon": exclude_poly,
+            "machine_model": machine_model,
+            "nozzle_variants": nozzle_variants,
+            "default_print_profile": default_print,
+            "default_filament_profile": default_filament,
+            "settings": flattened,
+            "processes": processes,
+            "filaments": filaments,
+            "provenance": self.provenance,
+        }
+        self._compatible_cache[cache_key] = result
+        return result
 
     def _validate_section(
         self,

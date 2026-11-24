@@ -100,6 +100,7 @@ def export_native_defaults(orca_bin: str) -> dict:
 def build_catalog(profiles_root: pathlib.Path, out_dir: pathlib.Path, orca_bin: str):
     vendors = {}
     profiles = {}
+    machine_models = {}
     official_keys: set[str] = set()
 
     for manifest_file in sorted(profiles_root.glob("*.json")):
@@ -111,6 +112,33 @@ def build_catalog(profiles_root: pathlib.Path, out_dir: pathlib.Path, orca_bin: 
             manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
+
+        for entry in manifest.get("machine_model_list", []):
+            name = entry.get("name")
+            sub_path = entry.get("sub_path")
+            if not name or not sub_path:
+                continue
+            model_file = vendor_dir / sub_path
+            if not model_file.is_file():
+                continue
+            try:
+                mdata = json.loads(model_file.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            machine_models[f"{vendor_id}/{name}"] = {
+                "vendor": vendor_id,
+                "name": name,
+                "path": f"{vendor_id}/{sub_path}",
+                "bed_model": mdata.get("bed_model", ""),
+                "bed_texture": mdata.get("bed_texture", ""),
+                "hotend_model": mdata.get("hotend_model", ""),
+                "default_bed_type": mdata.get("default_bed_type", ""),
+                "not_support_bed_type": mdata.get("not_support_bed_type", ""),
+                "nozzle_diameter": mdata.get("nozzle_diameter", ""),
+                "default_materials": mdata.get("default_materials", ""),
+                "family": mdata.get("family", ""),
+                "model_id": mdata.get("model_id", ""),
+            }
 
         vendor_counts = {"machine": 0, "process": 0, "filament": 0}
         for kind in ("machine", "process", "filament"):
@@ -158,6 +186,7 @@ def build_catalog(profiles_root: pathlib.Path, out_dir: pathlib.Path, orca_bin: 
     catalog = {
         "provenance": provenance,
         "vendors": vendors,
+        "machine_models": machine_models,
         "profiles": profiles,
     }
     raw = json.dumps(catalog, separators=(",", ":"), ensure_ascii=True).encode("utf-8")

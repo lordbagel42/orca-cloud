@@ -820,6 +820,35 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(422, {"error": str(exc)})
             return self.reply(200, detail)
 
+        if path == "/v2/profiles/compatible":
+            vendor = (query.get("vendor") or [""])[0]
+            machine = (query.get("machine") or [""])[0]
+            if not vendor or not machine:
+                return self.reply(400, {"error": "vendor and machine are required"})
+            try:
+                compat = CATALOG.get_compatible_profiles(vendor, machine)
+            except KeyError as exc:
+                return self.reply(404, {"error": str(exc)})
+            except ValueError as exc:
+                return self.reply(422, {"error": str(exc)})
+            return self.reply(200, compat)
+
+        asset_match = re.fullmatch(r"/v2/assets/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)", path)
+        if asset_match:
+            vendor_id, filename = asset_match[1], asset_match[2]
+            assets_root = (ROOT / "assets").resolve()
+            candidate = (assets_root / vendor_id / filename).resolve()
+            if not str(candidate).startswith(str(assets_root) + "/") or not candidate.is_file():
+                return self.reply(404, {"error": "Asset not found"})
+            ext = candidate.suffix.lower()
+            ctype = (
+                "model/stl" if ext == ".stl"
+                else "image/svg+xml" if ext == ".svg"
+                else "image/png" if ext == ".png"
+                else "application/octet-stream"
+            )
+            return self.reply_bytes(200, candidate.read_bytes(), ctype)
+
         if path == "/v2/profiles":
             kind = (query.get("kind") or [None])[0] or None
             vendor = (query.get("vendor") or [None])[0] or None
