@@ -1,0 +1,30 @@
+{
+  "name": "orca-cloud-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "check": "tsc --noEmit",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.2.5",
+    "@fontsource-variable/geist-mono": "^5.2.5",
+    "fflate": "^0.8.2",
+    "lucide-react": "^0.511.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "three": "^0.176.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@types/three": "^0.176.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.1.3"
+  }
+}

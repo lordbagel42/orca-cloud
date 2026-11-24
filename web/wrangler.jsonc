@@ -1,0 +1,13 @@
+{
+  "name": "orca-cloud-web",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-01-01",
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "ORCA_ORIGIN": "https://orca.bagelindustries.com"
+  }
+}
