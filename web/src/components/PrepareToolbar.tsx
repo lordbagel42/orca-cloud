@@ -65,12 +65,12 @@ export function PrepareToolbar({ ws, onTriggerFileImport }: Props) {
   const tipId = useId();
 
   useEffect(() => {
-    const close = (e: MouseEvent) => {
+    const close = (e: PointerEvent) => {
       if (primRef.current && !primRef.current.contains(e.target as Node)) setPrimOpen(false);
       if (mirrorRef.current && !mirrorRef.current.contains(e.target as Node)) setMirrorOpen(false);
     };
-    window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
   }, []);
 
   useEffect(() => {
@@ -80,6 +80,7 @@ export function PrepareToolbar({ ws, onTriggerFileImport }: Props) {
   }, []);
 
   const showTooltip = useCallback((el: HTMLElement, label: string, shortcut?: string) => {
+    if (typeof window !== "undefined" && window.matchMedia("(hover: none)").matches) return;
     if (showTimerRef.current !== null) {
       window.clearTimeout(showTimerRef.current);
       showTimerRef.current = null;

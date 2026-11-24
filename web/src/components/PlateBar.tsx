@@ -73,7 +73,7 @@ export function PlateBar({ ws }: { ws: WorkspaceAPI }) {
             {syncingCount > 0 ? "Syncing…" : allSynced ? "Pre-staged" : "Local"}
           </span>
         )}
-        <span className="mono">
+        <span className="mono plate-meta-bed">
           Bed: {bw}×{bd}×{bh} mm
         </span>
         <span className="mono plate-meta-tris">{ws.activePlate.objects.length} obj · {totalTris.toLocaleString()} tris</span>

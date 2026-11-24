@@ -1038,6 +1038,9 @@ export function useWorkspace() {
       notify("Add at least one visible model to the build plate before slicing", "error");
       return;
     }
+    if (typeof window !== "undefined" && window.innerWidth < 960) {
+      setSidebarOpen(false);
+    }
     setSlicing(true);
     setSliceStatusText("Configuring OrcaSlicer 2.5.0...");
     try {

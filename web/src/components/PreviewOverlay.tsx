@@ -30,6 +30,7 @@ const COLOR_SCHEMES: Array<{ id: PreviewColorScheme; label: string }> = [
 export function PreviewOverlay({ ws }: { ws: WorkspaceAPI }) {
   const [inspectorOpen, setInspectorOpen] = useState<"none" | "gcode" | "diagnostics">("none");
   const [gcodeFilter, setGcodeFilter] = useState("");
+  const [mobileHudExpanded, setMobileHudExpanded] = useState(false);
 
   const gcode = ws.parsedGcode;
   const maxLayer = gcode ? Math.max(0, gcode.layers.length - 1) : 0;
@@ -113,8 +114,29 @@ export function PreviewOverlay({ ws }: { ws: WorkspaceAPI }) {
 
   return (
     <>
-      {/* TOP-RIGHT PREVIEW LEGEND & SLICE SUMMARY HUD */}
-      <aside className="preview-hud" aria-label="Slice preview summary">
+      {/* TOP-LEFT PREVIEW LEGEND & SLICE SUMMARY HUD */}
+      <aside
+        className={`preview-hud ${mobileHudExpanded ? "mobile-expanded" : "mobile-collapsed"}`}
+        aria-label="Slice preview summary"
+      >
+        <button
+          className="preview-hud-mobile-bar"
+          onClick={() => setMobileHudExpanded((v) => !v)}
+          aria-expanded={mobileHudExpanded}
+        >
+          <span className="mono" style={{ color: "var(--accent-text)", fontWeight: 600 }}>
+            {displayTime}
+          </span>
+          <span className="mono">{displayGrams}g</span>
+          <span className="mono" style={{ color: "var(--text-muted)" }}>
+            L{ws.layerTop + 1}/{gcode.layers.length}
+          </span>
+          <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", color: "var(--text-secondary)" }}>
+            {mobileHudExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </span>
+        </button>
+
+        <div className="preview-hud-body">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
           <span style={{ fontSize: 12.5, fontWeight: 600 }}>Color Scheme</span>
           <select
@@ -299,6 +321,7 @@ export function PreviewOverlay({ ws }: { ws: WorkspaceAPI }) {
         <button className="btn btn-primary btn-sm" onClick={ws.exportSlicedGcodeFile}>
           <Download size={12} /> Download G-code ({(gcode.rawText.length / 1024).toFixed(0)} KiB)
         </button>
+        </div>
       </aside>
 
       {/* VERTICAL LAYER SLIDER (RIGHT EDGE) */}
@@ -382,7 +405,7 @@ export function PreviewOverlay({ ws }: { ws: WorkspaceAPI }) {
           <option value={80}>40×</option>
         </select>
 
-        <span className="mono" style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 96 }}>
+        <span className="mono move-scrubber-layer-label" style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 96 }}>
           L{ws.layerTop + 1}/{gcode.layers.length} · Z {activeLayer?.z.toFixed(2) ?? "0.00"}
         </span>
 

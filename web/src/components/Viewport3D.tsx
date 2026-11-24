@@ -320,6 +320,7 @@ export function Viewport3D({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
     controls.target.set(90, 90, 15);
     controls.maxDistance = 1600;
     controls.minDistance = 20;
@@ -448,11 +449,63 @@ export function Viewport3D({
 
     let downXY = { x: 0, y: 0 };
     let rightDownXY = { x: 0, y: 0 };
+    let activeTouchPointers = new Set<number>();
+    let longPressTimer: number | null = null;
+    let longPressTriggered = false;
+
+    const clearLongPress = () => {
+      if (longPressTimer !== null) {
+        window.clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    const openContextMenuAt = (clientX: number, clientY: number, hitEvent: { clientX: number; clientY: number }) => {
+      const curWs = wsRef.current;
+      setSubmenu(null);
+      if (curWs.tab === "prepare") {
+        const hits = getHit(hitEvent as PointerEvent);
+        if (hits.length > 0) {
+          const oid = hits[0].object.userData?.objectId as string | undefined;
+          if (oid) {
+            curWs.setSelectedObjectId(oid);
+            curWs.setSelectedSubPartId(null);
+            setCtxMenu({ x: clientX, y: clientY, objectId: oid });
+            return;
+          }
+        }
+      }
+      setCtxMenu({ x: clientX, y: clientY, objectId: null });
+    };
 
     const onPointerDown = (e: PointerEvent) => {
       setCtxMenu(null);
       setSubmenu(null);
+      clearLongPress();
+      longPressTriggered = false;
       downXY = { x: e.clientX, y: e.clientY };
+
+      if (e.pointerType === "touch") {
+        activeTouchPointers.add(e.pointerId);
+        if (activeTouchPointers.size === 1) {
+          const cx = e.clientX;
+          const cy = e.clientY;
+          longPressTimer = window.setTimeout(() => {
+            longPressTimer = null;
+            if (activeTouchPointers.size !== 1 || isPaintingRef.current || transform.dragging) return;
+            longPressTriggered = true;
+            if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+              try {
+                navigator.vibrate(14);
+              } catch {
+                // ignore
+              }
+            }
+            openContextMenuAt(cx, cy, { clientX: cx, clientY: cy });
+          }, 480);
+        }
+      }
+
       if (e.button === 2) {
         rightDownXY = { x: e.clientX, y: e.clientY };
         return;
@@ -465,6 +518,7 @@ export function Viewport3D({
       if (isPaintTool && e.button === 0 && !e.shiftKey) {
         const hits = getHit(e);
         if (hits.length > 0) {
+          clearLongPress();
           isPaintingRef.current = true;
           controls.enabled = false;
           paintAtHit(hits[0]);
@@ -473,20 +527,34 @@ export function Viewport3D({
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      if (longPressTimer !== null && Math.hypot(e.clientX - downXY.x, e.clientY - downXY.y) > 8) {
+        clearLongPress();
+      }
       if (!isPaintingRef.current) return;
       const hits = getHit(e);
       if (hits.length > 0) paintAtHit(hits[0]);
     };
 
+    const onPointerCancel = (e: PointerEvent) => {
+      activeTouchPointers.delete(e.pointerId);
+      clearLongPress();
+    };
+
     const onPointerUp = (e: PointerEvent) => {
+      activeTouchPointers.delete(e.pointerId);
+      clearLongPress();
+      if (longPressTriggered) {
+        longPressTriggered = false;
+        return;
+      }
       if (isPaintingRef.current) {
         isPaintingRef.current = false;
         controls.enabled = true;
         return;
       }
-      if (e.button !== 0) return;
+      if (e.button !== 0 && e.pointerType !== "touch") return;
       const moved = Math.hypot(e.clientX - downXY.x, e.clientY - downXY.y);
-      if (moved > 5) return;
+      if (moved > 8) return;
 
       const curWs = wsRef.current;
       if (curWs.tab !== "prepare") return;
@@ -541,27 +609,13 @@ export function Viewport3D({
       // Only open context menu on a clean right-click, not after right-drag panning
       const rightMoved = Math.hypot(e.clientX - rightDownXY.x, e.clientY - rightDownXY.y);
       if (rightMoved > 6) return;
-
-      const curWs = wsRef.current;
-      setSubmenu(null);
-      if (curWs.tab === "prepare") {
-        const hits = getHit(e);
-        if (hits.length > 0) {
-          const oid = hits[0].object.userData?.objectId as string | undefined;
-          if (oid) {
-            curWs.setSelectedObjectId(oid);
-            curWs.setSelectedSubPartId(null);
-            setCtxMenu({ x: e.clientX, y: e.clientY, objectId: oid });
-            return;
-          }
-        }
-      }
-      setCtxMenu({ x: e.clientX, y: e.clientY, objectId: null });
+      openContextMenuAt(e.clientX, e.clientY, e);
     };
 
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerCancel);
     renderer.domElement.addEventListener("contextmenu", onContextMenu);
 
     let rafId = 0;
@@ -582,6 +636,8 @@ export function Viewport3D({
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
+      clearLongPress();
       renderer.domElement.removeEventListener("contextmenu", onContextMenu);
       controls.dispose();
       transform.dispose();
@@ -1160,10 +1216,10 @@ export function Viewport3D({
         setSubmenu(null);
       }
     };
-    window.addEventListener("mousedown", onDown);
+    window.addEventListener("pointerdown", onDown);
     window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("pointerdown", onDown);
       window.removeEventListener("keydown", onKey);
     };
   }, [ctxMenu]);

@@ -14,6 +14,7 @@ import {
   Settings2,
   SlidersHorizontal,
   Trash2,
+  X,
 } from "lucide-react";
 import type { WorkspaceAPI } from "../store/useWorkspace";
 import { BED_TYPES, type BedType, type SubPartType } from "../types";
@@ -105,6 +106,19 @@ export function LeftSidebar({ ws }: { ws: WorkspaceAPI }) {
 
   return (
     <aside className="left-sidebar" aria-label="Slicer settings">
+      <div className="sidebar-mobile-header">
+        <span className="section-title">
+          <SlidersHorizontal size={13} /> Printer &amp; Slicer Settings
+        </span>
+        <button
+          className="btn btn-sm"
+          onClick={() => ws.setSidebarOpen(false)}
+          aria-label="Close settings drawer"
+        >
+          <X size={13} /> Done
+        </button>
+      </div>
+
       {/* PRINTER SECTION */}
       <div className="sidebar-section">
         <div className="section-header">

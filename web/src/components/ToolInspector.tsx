@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlignVerticalJustifyEnd,
   Box,
+  ChevronDown,
+  ChevronUp,
   Crosshair,
   Move,
   Paintbrush,
@@ -23,6 +25,12 @@ export function ToolInspector({ ws }: { ws: WorkspaceAPI }) {
   const [embossText, setEmbossText] = useState("ORCA");
   const [embossHeight, setEmbossHeight] = useState(14);
   const [embossDepth, setEmbossDepth] = useState(2.4);
+  const [mobileExpanded, setMobileExpanded] = useState(false);
+
+  // Auto-expand mobile bottom sheet when switching into an interactive tool, collapse when returning to plain select
+  useEffect(() => {
+    setMobileExpanded(ws.tool !== "select");
+  }, [ws.tool]);
 
   const obj = ws.selectedObject;
 
@@ -32,9 +40,59 @@ export function ToolInspector({ ws }: { ws: WorkspaceAPI }) {
   }
 
   const worldBounds = obj ? getObjectWorldBounds(obj) : null;
+  const mobileSummaryTitle =
+    ws.tool === "text_emboss"
+      ? "Emboss 3D Text"
+      : ws.tool === "measure"
+      ? "Measure Tool"
+      : ws.tool === "lay_on_face"
+      ? "Lay on Face"
+      : ws.tool === "cut"
+      ? "Cut Plane"
+      : ws.tool === "paint_support"
+      ? "Support Painting"
+      : ws.tool === "paint_seam"
+      ? "Seam Painting"
+      : ws.tool === "paint_color"
+      ? "Color Painting"
+      : ws.tool === "variable_layer"
+      ? "Variable Layer Height"
+      : obj?.name || "Inspector";
 
   return (
-    <aside className="tool-inspector" aria-label="Tool inspector">
+    <aside
+      className={`tool-inspector ${mobileExpanded ? "mobile-expanded" : "mobile-collapsed"}`}
+      aria-label="Tool inspector"
+    >
+      <div className="mobile-sheet-bar">
+        <button
+          className="mobile-sheet-toggle"
+          onClick={() => setMobileExpanded((v) => !v)}
+          aria-expanded={mobileExpanded}
+        >
+          <span className="mobile-sheet-pill" aria-hidden="true" />
+          <span className="mobile-sheet-summary">
+            <strong>{mobileSummaryTitle}</strong>
+            {worldBounds && (
+              <span className="mono" style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
+                {worldBounds.size[0].toFixed(0)}×{worldBounds.size[1].toFixed(0)}×{worldBounds.size[2].toFixed(0)} mm
+              </span>
+            )}
+          </span>
+          {mobileExpanded ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+        </button>
+        {obj && ws.tool === "select" && (
+          <button
+            className="icon-btn icon-btn-sm"
+            onClick={ws.deleteSelected}
+            aria-label="Delete selected object"
+          >
+            <Trash2 size={13} color="#fca5a5" />
+          </button>
+        )}
+      </div>
+
+      <div className="tool-inspector-body">
       {ws.tool === "text_emboss" && (
         <>
           <div className="inspector-header">
@@ -431,6 +489,7 @@ export function ToolInspector({ ws }: { ws: WorkspaceAPI }) {
           </div>
         </>
       )}
+      </div>
     </aside>
   );
 }

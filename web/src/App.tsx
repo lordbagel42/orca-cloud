@@ -52,7 +52,16 @@ export function App() {
       />
 
       <main className="workspace-body">
-        {ws.sidebarOpen && ws.tab !== "calibration" && <LeftSidebar ws={ws} />}
+        {ws.sidebarOpen && ws.tab !== "calibration" && (
+          <>
+            <div
+              className="mobile-backdrop"
+              aria-hidden="true"
+              onClick={() => ws.setSidebarOpen(false)}
+            />
+            <LeftSidebar ws={ws} />
+          </>
+        )}
 
         {ws.tab === "calibration" ? (
           <CalibrationView ws={ws} />

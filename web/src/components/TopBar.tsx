@@ -35,13 +35,13 @@ export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
   const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const close = (e: MouseEvent) => {
+    const close = (e: PointerEvent) => {
       if (fileRef.current && !fileRef.current.contains(e.target as Node)) setFileMenuOpen(false);
       if (serverRef.current && !serverRef.current.contains(e.target as Node)) setServerPopOpen(false);
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportMenuOpen(false);
     };
-    window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
   }, []);
 
   return (
@@ -321,7 +321,7 @@ export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
           ) : (
             <>
               <Play size={13} fill="currentColor" />
-              <span>Slice Plate</span>
+              <span>Slice<span className="topbar-slice-suffix"> Plate</span></span>
             </>
           )}
         </button>
