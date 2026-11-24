@@ -1360,10 +1360,10 @@ button:disabled {
 }
 
 .toast.toast-preview {
-  top: 14px;
-  left: auto;
-  right: 54px;
-  max-width: 340px;
+  top: 12px;
+  left: 12px;
+  right: auto;
+  max-width: calc(100% - 360px);
 }
 
 .toast.toast-fixed {

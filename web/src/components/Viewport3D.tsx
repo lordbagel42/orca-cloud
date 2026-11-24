@@ -40,12 +40,12 @@ function createBedTexture(
   const ctx = canvas.getContext("2d")!;
 
   const palette: Record<BedType, { bg: string; minor: string; major: string; accent: string }> = {
-    "Textured PEI Plate": { bg: "#2e2a23", minor: "rgba(240,206,144,0.13)", major: "rgba(240,206,144,0.30)", accent: "rgba(255,255,255,0.14)" },
-    "Smooth PEI Plate": { bg: "#282d36", minor: "rgba(216,228,245,0.11)", major: "rgba(216,228,245,0.26)", accent: "rgba(255,255,255,0.14)" },
-    "Cool Plate": { bg: "#252b34", minor: "rgba(186,204,224,0.11)", major: "rgba(186,204,224,0.26)", accent: "rgba(255,255,255,0.14)" },
-    "High Temp Plate": { bg: "#2a282e", minor: "rgba(248,160,160,0.11)", major: "rgba(248,160,160,0.24)", accent: "rgba(255,255,255,0.14)" },
-    "Engineering Plate": { bg: "#2b2f37", minor: "rgba(214,224,238,0.12)", major: "rgba(214,224,238,0.28)", accent: "rgba(255,255,255,0.14)" },
-    "Textured Cool Plate": { bg: "#252e38", minor: "rgba(125,211,252,0.12)", major: "rgba(125,211,252,0.28)", accent: "rgba(255,255,255,0.14)" },
+    "Textured PEI Plate": { bg: "#221f1a", minor: "rgba(222,186,126,0.10)", major: "rgba(222,186,126,0.26)", accent: "rgba(255,255,255,0.10)" },
+    "Smooth PEI Plate": { bg: "#1f232a", minor: "rgba(200,214,235,0.09)", major: "rgba(200,214,235,0.23)", accent: "rgba(255,255,255,0.10)" },
+    "Cool Plate": { bg: "#1d2229", minor: "rgba(176,196,218,0.09)", major: "rgba(176,196,218,0.23)", accent: "rgba(255,255,255,0.10)" },
+    "High Temp Plate": { bg: "#211f24", minor: "rgba(240,150,150,0.09)", major: "rgba(240,150,150,0.22)", accent: "rgba(255,255,255,0.10)" },
+    "Engineering Plate": { bg: "#22252b", minor: "rgba(204,214,228,0.10)", major: "rgba(204,214,228,0.24)", accent: "rgba(255,255,255,0.10)" },
+    "Textured Cool Plate": { bg: "#1d242c", minor: "rgba(120,200,248,0.10)", major: "rgba(120,200,248,0.24)", accent: "rgba(255,255,255,0.10)" },
   };
   const pal = palette[bedType] || palette["Textured PEI Plate"];
 
@@ -54,7 +54,7 @@ function createBedTexture(
 
   // Subtle PEI speckle texture
   if (bedType.includes("Textured")) {
-    ctx.fillStyle = "rgba(255,248,230,0.04)";
+    ctx.fillStyle = "rgba(255,244,220,0.032)";
     for (let i = 0; i < 4200; i++) {
       const rx = (((i * 7919) % 10000) / 10000) * cw;
       const ry = (((i * 6271) % 10000) / 10000) * ch;
@@ -262,10 +262,10 @@ function createStudioBackdropTexture(): THREE.CanvasTexture {
   c.width = 512;
   c.height = 512;
   const ctx = c.getContext("2d")!;
-  const grad = ctx.createRadialGradient(256, 210, 24, 256, 260, 360);
-  grad.addColorStop(0, "#2d333f");
-  grad.addColorStop(0.55, "#212630");
-  grad.addColorStop(1, "#161920");
+  const grad = ctx.createLinearGradient(0, 0, 0, 512);
+  grad.addColorStop(0, "#1d2026");
+  grad.addColorStop(0.6, "#171a20");
+  grad.addColorStop(1, "#121419");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 512, 512);
   const tex = new THREE.CanvasTexture(c);
@@ -338,34 +338,34 @@ export function Viewport3D({
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(host.clientWidth, host.clientHeight);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMapping = THREE.NeutralToneMapping;
+    renderer.toneMappingExposure = 0.98;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Studio IBL reflections so satin/metallic PEI bed, hotend, and models never reflect pitch black
+    // Subtle IBL reflections (low intensity so metallic edges read crisply without washing out shadows or bed)
     const pmrem = new THREE.PMREMGenerator(renderer);
     const roomEnv = new RoomEnvironment();
     const envRT = pmrem.fromScene(roomEnv, 0.04);
     scene.environment = envRT.texture;
-    scene.environmentIntensity = 0.62;
+    scene.environmentIntensity = 0.16;
     roomEnv.dispose();
     pmrem.dispose();
 
-    // Studio CAD 4-point lighting with soft build-plate contact shadows
-    const hemi = new THREE.HemisphereLight(0xf3f7ff, 0x3f4758, 1.35);
+    // Sculptural CAD lighting rig: crisp key light + deep shadow floor + gentle fill & rim separation
+    const hemi = new THREE.HemisphereLight(0xdce6f7, 0x0f1218, 0.5);
     hemi.position.set(0, 0, 420);
     scene.add(hemi);
 
-    const keyLight = new THREE.DirectionalLight(0xfffdf8, 1.45);
-    keyLight.position.set(260, -230, 390);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
+    keyLight.position.set(250, -210, 360);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.set(2048, 2048);
     keyLight.shadow.bias = -0.0004;
     keyLight.shadow.normalBias = 0.02;
-    keyLight.shadow.radius = 2.5;
+    keyLight.shadow.radius = 2.8;
     keyLight.shadow.camera.near = 60;
     keyLight.shadow.camera.far = 1100;
     keyLight.shadow.camera.left = -220;
@@ -377,12 +377,12 @@ export function Viewport3D({
     scene.add(keyLight.target);
     keyLightRef.current = keyLight;
 
-    const fillLight = new THREE.DirectionalLight(0xdce8fa, 0.85);
-    fillLight.position.set(-240, -180, 220);
+    const fillLight = new THREE.DirectionalLight(0xbcd3f5, 0.26);
+    fillLight.position.set(-240, -140, 150);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xc7ddff, 0.6);
-    rimLight.position.set(-180, 260, 190);
+    const rimLight = new THREE.DirectionalLight(0xa8ccff, 0.36);
+    rimLight.position.set(-160, 260, 200);
     scene.add(rimLight);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -795,9 +795,9 @@ export function Viewport3D({
       // Official 3D printer build plate STL (e.g. bbl-3dp-A1M.stl, bbl-3dp-X1.stl) with real front tab & rear alignment ears
       if (bedStlGeom) {
         const stlMat = new THREE.MeshStandardMaterial({
-          color: ws.bedType.includes("Textured") ? "#473f33" : "#3a404d",
-          roughness: ws.bedType.includes("Textured") ? 0.52 : 0.34,
-          metalness: 0.32,
+          color: ws.bedType.includes("Textured") ? "#2d2822" : "#282c34",
+          roughness: ws.bedType.includes("Textured") ? 0.72 : 0.45,
+          metalness: 0.22,
           polygonOffset: true,
           polygonOffsetFactor: 2,
           polygonOffsetUnits: 2,
@@ -811,14 +811,14 @@ export function Viewport3D({
         // Subtle metallic chassis underside rim below the spring-steel PEI sheet
         const chassis = new THREE.Mesh(
           new THREE.BoxGeometry(bw + 2, bd + 2, 2.0),
-          new THREE.MeshStandardMaterial({ color: "#1d212a", roughness: 0.65, metalness: 0.28 })
+          new THREE.MeshStandardMaterial({ color: "#15181f", roughness: 0.72, metalness: 0.2 })
         );
         chassis.position.set(bw / 2, bd / 2, -1.65);
         group.add(chassis);
       } else {
         const plateBase = new THREE.Mesh(
           new THREE.BoxGeometry(bw + 4, bd + 4, 2.2),
-          new THREE.MeshStandardMaterial({ color: "#232833", roughness: 0.58, metalness: 0.25 })
+          new THREE.MeshStandardMaterial({ color: "#1a1d24", roughness: 0.68, metalness: 0.2 })
         );
         plateBase.position.set(bw / 2, bd / 2, -1.25);
         plateBase.receiveShadow = true;
@@ -830,8 +830,8 @@ export function Viewport3D({
       const bedGeo = new THREE.PlaneGeometry(bw, bd);
       const bedMat = new THREE.MeshStandardMaterial({
         map: tex,
-        roughness: ws.bedType.includes("Textured") ? 0.72 : 0.38,
-        metalness: 0.12,
+        roughness: ws.bedType.includes("Textured") ? 0.9 : 0.52,
+        metalness: 0.04,
         polygonOffset: true,
         polygonOffsetFactor: 1,
         polygonOffsetUnits: 1,
@@ -939,11 +939,11 @@ export function Viewport3D({
             })
           : new THREE.MeshStandardMaterial({
               vertexColors: true,
-              roughness: 0.36,
-              metalness: 0.05,
+              roughness: 0.46,
+              metalness: 0.04,
               wireframe: ws.wireframe,
-              emissive: new THREE.Color(isSelected ? "#1d4ed8" : "#000000"),
-              emissiveIntensity: isSelected ? 0.12 : 0,
+              emissive: new THREE.Color(isSelected ? "#0f2a4a" : "#000000"),
+              emissiveIntensity: isSelected ? 0.08 : 0,
             });
 
       const mesh = new THREE.Mesh(geom, mat);

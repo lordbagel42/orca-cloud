@@ -58,13 +58,13 @@ precision highp usampler2D;
 
 uniform vec3 light_top_dir;
 uniform float gloss_strength;
-const float light_top_diffuse = 0.6 * 0.82;
-const float light_top_specular = 0.6 * 0.28;
+const float light_top_diffuse = 0.6 * 0.8;
+const float light_top_specular = 0.6 * 0.25;
 const float light_top_shininess = 20.0;
 const vec3  light_front_dir = vec3(0.6985074, 0.1397015, 0.6985074);
-const float light_front_diffuse = 0.6 * 0.42;
-const float ambient = 0.37;
-const float emission = 0.16;
+const float light_front_diffuse = 0.6 * 0.32;
+const float ambient = 0.31;
+const float emission = 0.15;
 const float REFERENCE_THICKNESS = 0.4;
 const vec3 UP = vec3(0.0, 0.0, 1.0);
 
@@ -903,9 +903,9 @@ export class VGCodeRenderer {
       u.first_instance.value = first;
       u.instances_count.value = count;
       u.clipping_plane.value.copy(clip);
-      u.gloss_strength.value = isTravel ? 0.0 : opts.realisticGloss ? 0.64 : 0.0;
-      u.exposure.value = opts.realisticGloss ? 1.11 : 1.08;
-      u.saturation.value = 1.06;
+      u.gloss_strength.value = isTravel ? 0.0 : opts.realisticGloss ? 0.62 : 0.0;
+      u.exposure.value = opts.realisticGloss ? 1.04 : 1.02;
+      u.saturation.value = 1.08;
       u.lit_layers.value.set(opts.layerTop, opts.layerTop);
       u.grey_below_layer.value = -1;
       u.dim_brightness.value = opts.dimLowerLayers && opts.layerTop > opts.layerBottom ? 0.42 : -1.0;
