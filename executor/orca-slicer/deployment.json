@@ -1,0 +1,9 @@
+{
+  "organization": "a3b16d71-4cd2-46f7-a02f-1e762b58025b",
+  "app": "app_338cee7a-cdfb-42b8-bbca-2bb04ebf637d",
+  "slug": "orca-slicer",
+  "deployment": "dpl_80c6dfbb-6b56-4bbf-a247-26b05dbee41e",
+  "sourceCommit": "eacdefa3cb1b329be7bfd8660197a541d21f0c7a",
+  "sourceFiles": ["index.ts", "package.json"],
+  "nativeApi": "https://orca.bagelindustries.com"
+}

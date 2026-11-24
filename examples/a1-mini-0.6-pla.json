@@ -1,0 +1,25 @@
+{
+  "printer": {
+    "profile": {
+      "vendor": "BBL",
+      "name": "Bambu Lab A1 mini 0.6 nozzle"
+    }
+  },
+  "process": {
+    "profile": {
+      "vendor": "BBL",
+      "name": "0.30mm Standard @BBL A1M 0.6 nozzle"
+    },
+    "overrides": {
+      "layer_height": "0.30",
+      "sparse_infill_density": "20%"
+    }
+  },
+  "filament": {
+    "profile": {
+      "vendor": "BBL",
+      "name": "Generic PLA @BBL A1M"
+    }
+  },
+  "bed_type": "Textured PEI Plate"
+}

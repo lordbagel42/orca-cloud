@@ -1,0 +1,46 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      apps:
+        specifier: 0.0.1-beta.122
+        version: 0.0.1-beta.122
+
+packages:
+
+  '@cloudflare/workers-types@5.20260729.1':
+    resolution: {integrity: sha512-X5r/4y0gKMq/B72qkz/tEwNK4c3v2regT3to6Ia8qqC66E0+YIN/fU7x0JG6ej2rLxtU3TV3aVhfK9y8+jMMAw==}
+
+  apps@0.0.1-beta.122:
+    resolution: {integrity: sha512-Ou9LnKI5lzUrgW0GCYJaqNr/GCb4NIaUwD/rQ+50HH3ySzMhJbPOcZhoyCS8oOm4lFq4qDsIhQ6gorclObzMBA==}
+    peerDependencies:
+      '@modelcontextprotocol/sdk': ^1.31.0
+      graphql: ^16.11.0
+      react: ^19.2.0
+    peerDependenciesMeta:
+      '@modelcontextprotocol/sdk':
+        optional: true
+      graphql:
+        optional: true
+      react:
+        optional: true
+
+  effect@4.0.1:
+    resolution: {integrity: sha512-b1VlQG9g8fwxE5QnIZuPoOP/0MsqHJSRKxUijjoM80E5q95FXrX5yWtY5XI8G+GJsBQAVSDbLS458z9a++uVvw==}
+
+snapshots:
+
+  '@cloudflare/workers-types@5.20260729.1': {}
+
+  apps@0.0.1-beta.122:
+    dependencies:
+      '@cloudflare/workers-types': 5.20260729.1
+      effect: 4.0.1
+
+  effect@4.0.1: {}

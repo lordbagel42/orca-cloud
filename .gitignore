@@ -1,0 +1,8 @@
+.amp/
+node_modules/
+*.gcode
+*.gcode.3mf
+.env
+*.token
+__pycache__/
+*.pyc

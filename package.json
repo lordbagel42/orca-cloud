@@ -1,0 +1,13 @@
+{
+  "name": "orca-slicing-api",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "slice": "node client/slice.mjs",
+    "check": "node --check client/slice.mjs",
+    "test": "node --test client/*.test.mjs"
+  }
+}
