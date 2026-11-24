@@ -7,7 +7,10 @@
   },
   "scripts": {
     "slice": "node client/slice.mjs",
-    "check": "node --check client/slice.mjs",
-    "test": "node --test client/*.test.mjs"
+    "check": "node --check client/slice.mjs && pnpm --dir web check",
+    "test": "node --test client/*.test.mjs && pnpm --dir web test",
+    "web:dev": "pnpm --dir web dev",
+    "web:build": "pnpm --dir web build",
+    "backend:test": "python3 -m unittest -v backend/test_server.py"
   }
 }

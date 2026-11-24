@@ -71,15 +71,20 @@ function createBedTexture(width: number, depth: number, bedType: BedType): THREE
   ctx.lineWidth = 4;
   ctx.strokeRect(2, 2, cw - 4, ch - 4);
 
-  // Coordinate labels & FRONT indicator
+  // Coordinate labels along left edge (Y) and top edge (X), keeping front edge clean for plate name
   ctx.fillStyle = "rgba(226,232,240,0.42)";
-  ctx.font = `600 ${Math.round(cw * 0.018)}px monospace`;
+  ctx.font = `600 ${Math.round(cw * 0.017)}px monospace`;
+  ctx.textAlign = "left";
   for (let x = 50; x < width; x += 50) {
     const px = (x / width) * cw;
-    ctx.fillText(String(x), px + 4, ch - 8);
+    ctx.fillText(String(x), px + 4, Math.round(cw * 0.025));
+  }
+  for (let y = 50; y < depth; y += 50) {
+    const py = ch - (y / depth) * ch;
+    ctx.fillText(String(y), 8, py - 4);
   }
   ctx.textAlign = "center";
-  ctx.font = `600 ${Math.round(cw * 0.022)}px sans-serif`;
+  ctx.font = `600 ${Math.round(cw * 0.02)}px sans-serif`;
   ctx.fillText(`FRONT · ${bedType.toUpperCase()}`, cw / 2, ch - 12);
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -931,8 +936,13 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
         </div>
       )}
 
-      {/* Camera Presets HUD */}
-      <div className="camera-hud" role="toolbar" aria-label="Camera views">
+      {/* Camera Presets HUD (raised above move scrubber in Preview mode) */}
+      <div
+        className="camera-hud"
+        style={ws.tab === "preview" && ws.parsedGcode ? { bottom: 60 } : undefined}
+        role="toolbar"
+        aria-label="Camera views"
+      >
         {(
           [
             ["iso", "Iso"],

@@ -107,7 +107,16 @@ function makeDefaultFilaments(): FilamentSlot[] {
 
 export function useWorkspace() {
   const [tab, setTab] = useState<WorkspaceTab>("prepare");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth >= 960 : true
+  );
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth < 960) setSidebarOpen(false);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const [processScope, setProcessScope] = useState<"global" | "objects">("global");
   const [settingTab, setSettingTab] = useState<SettingTabId>("quality");
   const [advancedMode, setAdvancedMode] = useState(false);
@@ -179,7 +188,7 @@ export function useWorkspace() {
   const notify = useCallback((message: string, kind: ToastNotice["kind"] = "info") => {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
     setToast({ id: Date.now(), message, kind });
-    toastTimer.current = window.setTimeout(() => setToast(null), 4200);
+    toastTimer.current = window.setTimeout(() => setToast(null), kind === "error" ? 9000 : 4200);
   }, []);
 
   const activePlate = plates.find((p) => p.id === activePlateId) || plates[0];

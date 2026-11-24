@@ -439,6 +439,7 @@ export function LeftSidebar({ ws }: { ws: WorkspaceAPI }) {
             <input
               className="input"
               style={{ width: "100%", paddingLeft: 24 }}
+              aria-label="Search settings"
               placeholder="Search settings…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}

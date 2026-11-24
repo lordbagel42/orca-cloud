@@ -1,15 +1,32 @@
-# OrcaSlicer HTTP API
+# Orca Cloud — Native OrcaSlicer Web UI & HTTP API
 
-Native OrcaSlicer behind a small asynchronous HTTP API, for agents that need to turn STL models into G-code. This service does not connect to printers or start prints.
+Full-parity browser workspace (**Prepare**, **Preview**, and **Calibration** — no Device tab, no accounts) backed by the unmodified official **OrcaSlicer v2.5.0** engine behind a bounded Python HTTP API.
 
-- API: https://orca.bagelindustries.com
-- Health: https://orca.bagelindustries.com/healthz
-- OpenAPI: https://orca.bagelindustries.com/openapi.json
-- Available presets: https://orca.bagelindustries.com/v1/presets
+- Web UI (`web/`): React 19, TypeScript, Vite, Three.js, self-hosted Geist & Geist Mono, Cloudflare Worker reverse proxy (`web/worker/index.ts`), IndexedDB local autosave.
+- Native Engine API (`backend/`): Python 3 standard-library-only service (`backend/server.py`, `backend/configuration.py`, `backend/catalog.json.gz`) bundling all **72 vendors & 14,275 official OrcaSlicer 2.5.0 profiles**, STL & 3MF multi-object/multi-filament slicing, native mesh repair/auto-orient/inspect, and optional no-account mode (`AUTH_MODE=none`).
+- Live API: https://orca.bagelindustries.com (`/healthz`, `/openapi.json`, `/v1/presets`, `/v2/profiles`, `/v2/settings`).
 
-The fixed v1 API is live. The configurable v2 interface below is implemented locally and undergoing native and client verification; its deployment is not yet complete.
+## Run locally (Web UI + Native Backend)
 
-The engine runs natively on the homelab, not in a browser or a Cloudflare Worker. HTTPS routing goes through the existing Cloudflare/homelab ingress. A native binary avoids a WebAssembly port and preserves Orca's actual slicing behavior.
+Start the native backend (no accounts or API key needed in local mode):
+
+```sh
+DATA_DIR=/tmp/orca-data AUTH_MODE=none HTTP_BIND=127.0.0.1:8080 python3 backend/server.py
+```
+
+Start the browser workspace:
+
+```sh
+pnpm --dir web install
+pnpm web:dev
+```
+
+Or serve the production bundle directly from the backend (`STATIC_DIR=web/dist`):
+
+```sh
+pnpm web:build
+STATIC_DIR=web/dist DATA_DIR=/tmp/orca-data AUTH_MODE=none HTTP_BIND=0.0.0.0:8080 python3 backend/server.py
+```
 
 The engine is the unmodified official [OrcaSlicer v2.5.0 release](https://github.com/OrcaSlicer/OrcaSlicer/releases/tag/v2.5.0). Its [source](https://github.com/OrcaSlicer/OrcaSlicer/tree/v2.5.0) and [AGPL-3.0 license](https://github.com/OrcaSlicer/OrcaSlicer/blob/v2.5.0/LICENSE.txt) remain upstream; this wrapper does not claim ownership of OrcaSlicer or its printer profiles.
 

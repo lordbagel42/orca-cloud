@@ -67,10 +67,10 @@ export function CalibrationView({ ws }: { ws: WorkspaceAPI }) {
 
           <div className="calibration-detail">
             <div>
-              <div style={{ fontSize: 11, color: "var(--accent-text)", fontWeight: 600, marginBottom: 4 }}>
-                {spec.category}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{spec.name}</h2>
+                <span className="kbd">{spec.category}</span>
               </div>
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{spec.name}</h2>
               <p style={{ margin: "6px 0 0", color: "var(--text-secondary)", fontSize: 12.5, lineHeight: 1.55 }}>
                 {spec.description}
               </p>

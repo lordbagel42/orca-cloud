@@ -53,7 +53,7 @@ export function PlateBar({ ws }: { ws: WorkspaceAPI }) {
         </button>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 11.5, color: "var(--text-muted)" }}>
+      <div className="plate-bar-meta">
         <span className="mono">
           Bed: {bw}×{bd}×{bh} mm
         </span>

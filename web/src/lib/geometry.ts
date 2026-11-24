@@ -319,7 +319,7 @@ export function createPrimitiveGeometry(kind: PrimitiveKind, size = 25): Geometr
     return normalizeGeometry(bufferGeomToPositions(g));
   }
 
-  // Stylized boat / overhang benchmark model (multi-part watertight boxes & cylinders)
+  // Stylized boat / overhang benchmark model (flat hull base at Z=0 so first layer is always solid)
   const parts: Float32Array[] = [];
   const addBox = (w: number, d: number, h: number, x: number, y: number, z: number, rx = 0, ry = 0) => {
     const g = new THREE.BoxGeometry(w, d, h);
@@ -334,20 +334,21 @@ export function createPrimitiveGeometry(kind: PrimitiveKind, size = 25): Geometr
     g.translate(x, y, z);
     parts.push(bufferGeomToPositions(g));
   };
-  // Hull
-  addBox(38, 22, 12, 0, 0, 6);
-  // Bow angled prow
-  addBox(16, 18, 12, 20, 0, 7.5, 0, -0.35);
+  // Solid flat-bottom hull resting cleanly at Z=0..12
+  addBox(38, 22, 12, -2, 0, 6);
+  // Tapered bow steps that stay strictly above Z=0
+  addBox(12, 18, 12, 21, 0, 6);
+  addBox(8, 12, 11, 28, 0, 5.5);
   // Deck & cabin pillars
-  addBox(20, 16, 2, -2, 0, 13);
-  addBox(3, 3, 14, -10, -6.5, 20);
-  addBox(3, 3, 14, -10, 6.5, 20);
-  addBox(3, 3, 14, 6, -6.5, 20);
-  addBox(3, 3, 14, 6, 6.5, 20);
+  addBox(22, 16, 2, -2, 0, 13);
+  addBox(3.5, 3.5, 13, -10.5, -6.2, 20.5);
+  addBox(3.5, 3.5, 13, -10.5, 6.2, 20.5);
+  addBox(3.5, 3.5, 13, 6.5, -6.2, 20.5);
+  addBox(3.5, 3.5, 13, 6.5, 6.2, 20.5);
   // Roof overhang
-  addBox(22, 18, 2.5, -2, 0, 27.5);
+  addBox(23, 18, 2.6, -2, 0, 28.3);
   // Chimney stack
-  addCyl(3.5, 3.2, 10, -6, 0, 33.5);
+  addCyl(3.5, 3.2, 9.5, -6, 0, 34.3);
   return normalizeGeometry(mergePositionArrays(parts));
 }
 

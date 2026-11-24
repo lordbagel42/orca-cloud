@@ -71,8 +71,8 @@ export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
             aria-label="File menu"
           >
             <Menu size={14} />
-            <span>File</span>
-            <ChevronDown size={12} />
+            <span className="topbar-file-label">File</span>
+            <ChevronDown size={12} className="topbar-file-label" />
           </button>
           {fileMenuOpen && (
             <div className="menu-popover" style={{ top: 42, left: 10, width: 236 }}>
@@ -252,7 +252,7 @@ export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
         </div>
 
         <button
-          className="icon-btn"
+          className="icon-btn topbar-help-btn"
           title="Keyboard shortcuts (?)"
           aria-label="Keyboard shortcuts"
           onClick={onOpenShortcuts}
@@ -261,7 +261,7 @@ export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
         </button>
 
         {ws.parsedGcode && (
-          <div ref={exportRef} style={{ position: "relative" }}>
+          <div ref={exportRef} className="topbar-export-btn" style={{ position: "relative" }}>
             <button
               className="btn"
               onClick={() => setExportMenuOpen((v) => !v)}
@@ -307,7 +307,7 @@ export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
         )}
 
         <button
-          className="btn btn-primary"
+          className="btn btn-primary topbar-slice-btn"
           style={{ height: 32, padding: "0 14px" }}
           disabled={ws.slicing || !ws.activePlate.objects.some((o) => o.visible)}
           onClick={ws.sliceActivePlate}

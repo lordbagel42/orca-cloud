@@ -113,6 +113,33 @@ describe("gcode parser", () => {
     expect(parsed.stats.filamentLengthMm).toBeGreaterThan(4);
     expect(parsed.ranges.temp[0]).toBe(215);
   });
+
+  it("parses OrcaSlicer 2.5.0 / Bambu dialect (; CHANGE_LAYER, ; FEATURE:, ; Z_HEIGHT:, ; LINE_WIDTH:)", () => {
+    const orca = [
+      "; CHANGE_LAYER",
+      "; Z_HEIGHT: 0.2",
+      "; LAYER_HEIGHT: 0.2",
+      "; FEATURE: Outer wall",
+      "; LINE_WIDTH: 0.42",
+      "G0 X10 Y10 Z0.2 F9000",
+      "G1 X30 Y10 E0.8 F3600",
+      "; FEATURE: Sparse infill",
+      "G1 X30 Y30 E0.6 F6000",
+      "; CHANGE_LAYER",
+      "; Z_HEIGHT: 0.4",
+      "; LAYER_HEIGHT: 0.2",
+      "; FEATURE: Inner wall",
+      "G1 X10 Y30 E0.8 F4800",
+    ].join("\n");
+    const parsed = parseGcode(orca);
+    expect(parsed.layers.length).toBe(2);
+    expect(parsed.layers[0].z).toBeCloseTo(0.2, 3);
+    expect(parsed.layers[1].z).toBeCloseTo(0.4, 3);
+    const feats = parsed.stats.featureBreakdown.map((f) => f.feature);
+    expect(feats).toContain("Outer wall");
+    expect(feats).toContain("Sparse infill");
+    expect(feats).toContain("Inner wall");
+  });
 });
 
 describe("calibration & 3mf", () => {

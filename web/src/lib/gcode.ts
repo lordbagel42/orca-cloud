@@ -268,35 +268,41 @@ export function parseGcode(text: string): ParsedGcode {
     if (!raw) continue;
 
     if (raw.startsWith(";")) {
-      if (raw.startsWith(";TYPE:")) {
-        currentFeature = normalizeFeatureType(raw.slice(6));
-      } else if (raw.startsWith(";HEIGHT:")) {
-        const h = parseFloat(raw.slice(8));
+      const comment = raw.slice(1).trim();
+      if (comment.startsWith("TYPE:")) {
+        currentFeature = normalizeFeatureType(comment.slice(5));
+      } else if (comment.startsWith("FEATURE:")) {
+        currentFeature = normalizeFeatureType(comment.slice(8));
+      } else if (comment.startsWith("HEIGHT:") || comment.startsWith("LAYER_HEIGHT:")) {
+        const valStr = comment.includes("LAYER_HEIGHT:") ? comment.slice(13) : comment.slice(7);
+        const h = parseFloat(valStr.trim());
         if (Number.isFinite(h) && h > 0) {
           currentLayerHeight = h;
           if (layers.length > 0) layers[layers.length - 1].height = h;
         }
-      } else if (raw.startsWith(";WIDTH:")) {
-        const w = parseFloat(raw.slice(7));
+      } else if (comment.startsWith("WIDTH:") || comment.startsWith("LINE_WIDTH:")) {
+        const valStr = comment.includes("LINE_WIDTH:") ? comment.slice(11) : comment.slice(6);
+        const w = parseFloat(valStr.trim());
         if (Number.isFinite(w) && w > 0) currentLineWidth = w;
-      } else if (raw.startsWith(";Z:")) {
-        const lz = parseFloat(raw.slice(3));
+      } else if (comment.startsWith("Z:") || comment.startsWith("Z_HEIGHT:")) {
+        const valStr = comment.includes("Z_HEIGHT:") ? comment.slice(9) : comment.slice(2);
+        const lz = parseFloat(valStr.trim());
         if (Number.isFinite(lz)) {
           z = lz;
           if (layers.length > 0 && seenFirstLayerMarker) {
             layers[layers.length - 1].z = lz;
           }
         }
-      } else if (raw === ";LAYER_CHANGE" || raw.startsWith("; LAYER_CHANGE") || raw.startsWith(";CHANGE_LAYER")) {
+      } else if (comment === "LAYER_CHANGE" || comment === "CHANGE_LAYER") {
         seenFirstLayerMarker = true;
         startNewLayer(z, i);
-      } else if (raw.includes("estimated printing time") || raw.includes("total estimated time:")) {
+      } else if (comment.includes("estimated printing time") || comment.includes("total estimated time:")) {
         const m = raw.match(/(?:total estimated time: |estimated printing time \(normal mode\) = )([^;\n]+)/);
         if (m) headerTimeStr = m[1].trim();
-      } else if (raw.includes("filament used [g]")) {
+      } else if (comment.includes("filament used [g]")) {
         const m = raw.match(/filament used \[g\] = ([\d.]+)/);
         if (m) headerFilamentGrams = parseFloat(m[1]);
-      } else if (raw.includes("filament cost")) {
+      } else if (comment.includes("filament cost")) {
         const m = raw.match(/filament cost = ([\d.]+)/);
         if (m) headerFilamentCost = parseFloat(m[1]);
       }
