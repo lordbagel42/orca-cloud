@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { ChevronRight } from "lucide-react";
 import type { WorkspaceAPI } from "../store/useWorkspace";
 import type { BedType, GcodeFeatureType, ParsedGcode, SceneObject, SubPartType } from "../types";
@@ -15,6 +14,15 @@ import {
 import { INDEX_TO_FEATURE } from "../lib/gcode";
 import { loadPrinterAssetSTL, loadPrinterAssetSVG } from "../lib/printerAssets";
 import { VGCodeRenderer } from "../lib/vgcodeRenderer";
+import {
+  createOrcaHotbedMaterial,
+  createOrcaModelMaterial,
+  hexToSrgbRgb,
+  loadViewportRenderConfig,
+  OrcaPostPipeline,
+  saveViewportRenderConfig,
+  type OrcaViewportRenderConfig,
+} from "../lib/orcaShaders";
 import {
   applySpaceMouseToCamera,
   loadSpaceMousePrefs,
@@ -39,22 +47,26 @@ function createBedTexture(
   canvas.height = ch;
   const ctx = canvas.getContext("2d")!;
 
-  const palette: Record<BedType, { bg: string; minor: string; major: string; accent: string }> = {
-    "Textured PEI Plate": { bg: "#221f1a", minor: "rgba(222,186,126,0.10)", major: "rgba(222,186,126,0.26)", accent: "rgba(255,255,255,0.10)" },
-    "Smooth PEI Plate": { bg: "#1f232a", minor: "rgba(200,214,235,0.09)", major: "rgba(200,214,235,0.23)", accent: "rgba(255,255,255,0.10)" },
-    "Cool Plate": { bg: "#1d2229", minor: "rgba(176,196,218,0.09)", major: "rgba(176,196,218,0.23)", accent: "rgba(255,255,255,0.10)" },
-    "High Temp Plate": { bg: "#211f24", minor: "rgba(240,150,150,0.09)", major: "rgba(240,150,150,0.22)", accent: "rgba(255,255,255,0.10)" },
-    "Engineering Plate": { bg: "#22252b", minor: "rgba(204,214,228,0.10)", major: "rgba(204,214,228,0.24)", accent: "rgba(255,255,255,0.10)" },
-    "Textured Cool Plate": { bg: "#1d242c", minor: "rgba(120,200,248,0.10)", major: "rgba(120,200,248,0.24)", accent: "rgba(255,255,255,0.10)" },
+  // Direct port of OrcaSlicer 2.5.0 printbed.fs radial gradient (#5d5d5d center -> #3c3c3c edge, subtly tinted per plate)
+  const palette: Record<BedType, { center: string; edge: string; minor: string; major: string }> = {
+    "Textured PEI Plate": { center: "#4e4d49", edge: "#353432", minor: "rgba(232,202,148,0.12)", major: "rgba(232,202,148,0.25)" },
+    "Smooth PEI Plate": { center: "#4a4f57", edge: "#32363d", minor: "rgba(210,224,242,0.10)", major: "rgba(210,224,242,0.24)" },
+    "Cool Plate": { center: "#464d56", edge: "#2f353d", minor: "rgba(186,210,235,0.10)", major: "rgba(186,210,235,0.24)" },
+    "High Temp Plate": { center: "#4c484d", edge: "#343136", minor: "rgba(240,170,170,0.10)", major: "rgba(240,170,170,0.22)" },
+    "Engineering Plate": { center: "#4b4f56", edge: "#34373d", minor: "rgba(210,220,234,0.11)", major: "rgba(210,220,234,0.25)" },
+    "Textured Cool Plate": { center: "#454f5a", edge: "#2e363f", minor: "rgba(140,210,250,0.11)", major: "rgba(140,210,250,0.25)" },
   };
   const pal = palette[bedType] || palette["Textured PEI Plate"];
 
-  ctx.fillStyle = pal.bg;
+  const radGrad = ctx.createRadialGradient(cw * 0.5, ch * 0.5, cw * 0.04, cw * 0.5, ch * 0.5, cw * 0.65);
+  radGrad.addColorStop(0, pal.center);
+  radGrad.addColorStop(1, pal.edge);
+  ctx.fillStyle = radGrad;
   ctx.fillRect(0, 0, cw, ch);
 
   // Subtle PEI speckle texture
   if (bedType.includes("Textured")) {
-    ctx.fillStyle = "rgba(255,244,220,0.032)";
+    ctx.fillStyle = "rgba(255,246,225,0.036)";
     for (let i = 0; i < 4200; i++) {
       const rx = (((i * 7919) % 10000) / 10000) * cw;
       const ry = (((i * 6271) % 10000) / 10000) * ch;
@@ -156,7 +168,7 @@ function createBedTexture(
   }
 
   const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.colorSpace = THREE.NoColorSpace;
   tex.anisotropy = 8;
   return tex;
 }
@@ -176,13 +188,13 @@ function buildObjectBufferGeometry(
 
   const triCount = obj.geometry.triangleCount;
   const colors = new Float32Array(triCount * 9);
-  const baseCol = new THREE.Color(baseHex);
-  const overhangCol = new THREE.Color("#ef4444");
-  const enforceSupCol = new THREE.Color("#22c55e");
-  const blockSupCol = new THREE.Color("#ef4444");
-  const enforceSeamCol = new THREE.Color("#ffffff");
-  const blockSeamCol = new THREE.Color("#f43f5e");
-  const slotCols = filamentsHex.map((h) => new THREE.Color(h));
+  const baseCol = hexToSrgbRgb(baseHex);
+  const overhangCol = hexToSrgbRgb("#ef4444");
+  const enforceSupCol = hexToSrgbRgb("#22c55e");
+  const blockSupCol = hexToSrgbRgb("#ef4444");
+  const enforceSeamCol = hexToSrgbRgb("#ffffff");
+  const blockSeamCol = hexToSrgbRgb("#f43f5e");
+  const slotCols = filamentsHex.map((h) => hexToSrgbRgb(h));
 
   // World-space rotation for overhang detection
   const rotMat = new THREE.Matrix3().setFromMatrix4(
@@ -222,9 +234,9 @@ function buildObjectBufferGeometry(
     }
 
     const o = t * 9;
-    colors[o] = col.r; colors[o + 1] = col.g; colors[o + 2] = col.b;
-    colors[o + 3] = col.r; colors[o + 4] = col.g; colors[o + 5] = col.b;
-    colors[o + 6] = col.r; colors[o + 7] = col.g; colors[o + 8] = col.b;
+    colors[o] = col[0]; colors[o + 1] = col[1]; colors[o + 2] = col[2];
+    colors[o + 3] = col[0]; colors[o + 4] = col[1]; colors[o + 5] = col[2];
+    colors[o + 6] = col[0]; colors[o + 7] = col[1]; colors[o + 8] = col[2];
   }
 
   geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
@@ -262,14 +274,15 @@ function createStudioBackdropTexture(): THREE.CanvasTexture {
   c.width = 512;
   c.height = 512;
   const ctx = c.getContext("2d")!;
+  // OrcaSlicer dark-mode vertical viewport gradient (background.fs)
   const grad = ctx.createLinearGradient(0, 0, 0, 512);
-  grad.addColorStop(0, "#1d2026");
-  grad.addColorStop(0.6, "#171a20");
-  grad.addColorStop(1, "#121419");
+  grad.addColorStop(0, "#262930");
+  grad.addColorStop(0.55, "#202329");
+  grad.addColorStop(1, "#191c21");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 512, 512);
   const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.colorSpace = THREE.NoColorSpace;
   return tex;
 }
 
@@ -293,10 +306,16 @@ export function Viewport3D({
   });
   const [smPrefs, setSmPrefs] = useState<SpaceMousePrefs>(() => loadSpaceMousePrefs());
   const [smPopoverOpen, setSmPopoverOpen] = useState(false);
+  const [renderCfg, setRenderCfg] = useState<OrcaViewportRenderConfig>(() => loadViewportRenderConfig());
+  const [renderPopOpen, setRenderPopOpen] = useState(false);
   const smControllerRef = useRef<SpaceMouseController | null>(null);
   const smPrefsRef = useRef<SpaceMousePrefs>(smPrefs);
   smPrefsRef.current = smPrefs;
+  const renderCfgRef = useRef<OrcaViewportRenderConfig>(renderCfg);
+  renderCfgRef.current = renderCfg;
   const smPopRef = useRef<HTMLDivElement>(null);
+  const renderPopRef = useRef<HTMLDivElement>(null);
+  const postPipelineRef = useRef<OrcaPostPipeline | null>(null);
 
   // Refs to Three.js scene objects
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -336,36 +355,28 @@ export function Viewport3D({
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(dpr);
     renderer.setSize(host.clientWidth, host.clientHeight);
-    renderer.toneMapping = THREE.NeutralToneMapping;
-    renderer.toneMappingExposure = 0.98;
+    // Keep entire pipeline in native sRGB matching OrcaSlicer's OpenGL phong.fs / printbed.fs / libvgcode / ssao.fs
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Subtle IBL reflections (low intensity so metallic edges read crisply without washing out shadows or bed)
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    const roomEnv = new RoomEnvironment();
-    const envRT = pmrem.fromScene(roomEnv, 0.04);
-    scene.environment = envRT.texture;
-    scene.environmentIntensity = 0.16;
-    roomEnv.dispose();
-    pmrem.dispose();
+    const postPipeline = new OrcaPostPipeline(host.clientWidth * dpr, host.clientHeight * dpr);
+    postPipelineRef.current = postPipeline;
 
-    // Sculptural CAD lighting rig: crisp key light + deep shadow floor + gentle fill & rim separation
-    const hemi = new THREE.HemisphereLight(0xdce6f7, 0x0f1218, 0.5);
-    hemi.position.set(0, 0, 420);
-    scene.add(hemi);
-
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
-    keyLight.position.set(250, -210, 360);
+    // Dedicated directional shadow-casting light (matches OrcaSlicer printbed_shadow.fs)
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    keyLight.position.set(220, -210, 380);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.set(2048, 2048);
     keyLight.shadow.bias = -0.0004;
     keyLight.shadow.normalBias = 0.02;
-    keyLight.shadow.radius = 2.8;
+    keyLight.shadow.radius = 3.0;
     keyLight.shadow.camera.near = 60;
     keyLight.shadow.camera.far = 1100;
     keyLight.shadow.camera.left = -220;
@@ -376,14 +387,6 @@ export function Viewport3D({
     scene.add(keyLight);
     scene.add(keyLight.target);
     keyLightRef.current = keyLight;
-
-    const fillLight = new THREE.DirectionalLight(0xbcd3f5, 0.26);
-    fillLight.position.set(-240, -140, 150);
-    scene.add(fillLight);
-
-    const rimLight = new THREE.DirectionalLight(0xa8ccff, 0.36);
-    rimLight.position.set(-160, 260, 200);
-    scene.add(rimLight);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -444,9 +447,12 @@ export function Viewport3D({
       if (!host) return;
       const w = host.clientWidth;
       const h = Math.max(1, host.clientHeight);
+      const curDpr = Math.min(window.devicePixelRatio || 1, 2);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      renderer.setPixelRatio(curDpr);
       renderer.setSize(w, h);
+      postPipeline.setSize(w * curDpr, h * curDpr);
     });
     ro.observe(host);
 
@@ -701,6 +707,10 @@ export function Viewport3D({
       window.dispatchEvent(new CustomEvent("orca-camera-preset", { detail: btnIdx === 0 ? "fit" : "iso" }));
     });
 
+    const worldUpVec = new THREE.Vector3(0, 0, 1);
+    const viewRotMat = new THREE.Matrix3();
+    const worldUpEyeVec = new THREE.Vector3();
+
     let rafId = 0;
     let lastTime = performance.now();
     const animate = (now = performance.now()) => {
@@ -712,7 +722,20 @@ export function Viewport3D({
       if (!movedBySm) {
         controls.update();
       }
-      renderer.render(scene, camera);
+      camera.updateMatrixWorld();
+      viewRotMat.setFromMatrix4(camera.matrixWorldInverse);
+      worldUpEyeVec.copy(worldUpVec).applyMatrix3(viewRotMat).normalize();
+      const lm = renderCfgRef.current.lightingModel === "studio" ? 1 : 0;
+      const syncOrcaUniforms = (n: THREE.Object3D) => {
+        const m = (n as THREE.Mesh).material as THREE.ShaderMaterial | undefined;
+        if (m && m.uniforms && m.uniforms.uWorldUpEye) {
+          m.uniforms.uWorldUpEye.value.copy(worldUpEyeVec);
+          m.uniforms.uLightingModel.value = lm;
+        }
+      };
+      modelsGroup.traverse(syncOrcaUniforms);
+      overlayGroup.traverse(syncOrcaUniforms);
+      postPipeline.render(renderer, scene, camera, renderCfgRef.current.ssaoEnabled);
     };
     animate();
 
@@ -722,6 +745,8 @@ export function Viewport3D({
       unsubSmBtn();
       spaceMouse.dispose();
       smControllerRef.current = null;
+      postPipeline.dispose();
+      postPipelineRef.current = null;
       ro.disconnect();
       if (vgRendererRef.current) {
         vgRendererRef.current.renderer.dispose();
@@ -735,7 +760,6 @@ export function Viewport3D({
       renderer.domElement.removeEventListener("contextmenu", onContextMenu);
       controls.dispose();
       transform.dispose();
-      envRT.dispose();
       backdropTex.dispose();
       renderer.dispose();
       renderer.domElement.remove();
@@ -792,54 +816,56 @@ export function Viewport3D({
       if (cancelled) return;
       clearBedGroup();
 
-      // Official 3D printer build plate STL (e.g. bbl-3dp-A1M.stl, bbl-3dp-X1.stl) with real front tab & rear alignment ears
+      // Official 3D printer build plate STL (e.g. bbl-3dp-A1M.stl, bbl-3dp-X1.stl) shaded with OrcaSlicer hotbed.fs
       if (bedStlGeom) {
-        const stlMat = new THREE.MeshStandardMaterial({
-          color: ws.bedType.includes("Textured") ? "#2d2822" : "#282c34",
-          roughness: ws.bedType.includes("Textured") ? 0.72 : 0.45,
-          metalness: 0.22,
-          polygonOffset: true,
-          polygonOffsetFactor: 2,
-          polygonOffsetUnits: 2,
-        });
+        const stlMat = createOrcaHotbedMaterial(ws.bedType.includes("Textured") ? "#52504c" : "#4f545e", 0.04, true);
         const stlMesh = new THREE.Mesh(bedStlGeom, stlMat);
         stlMesh.position.set(0, 0, -0.05);
-        stlMesh.receiveShadow = true;
         stlMesh.userData = { sharedAsset: true };
         group.add(stlMesh);
 
-        // Subtle metallic chassis underside rim below the spring-steel PEI sheet
         const chassis = new THREE.Mesh(
           new THREE.BoxGeometry(bw + 2, bd + 2, 2.0),
-          new THREE.MeshStandardMaterial({ color: "#15181f", roughness: 0.72, metalness: 0.2 })
+          createOrcaHotbedMaterial("#2b2f38", 0.02, false)
         );
         chassis.position.set(bw / 2, bd / 2, -1.65);
         group.add(chassis);
       } else {
         const plateBase = new THREE.Mesh(
           new THREE.BoxGeometry(bw + 4, bd + 4, 2.2),
-          new THREE.MeshStandardMaterial({ color: "#1a1d24", roughness: 0.68, metalness: 0.2 })
+          createOrcaHotbedMaterial("#363a42", 0.03, false)
         );
         plateBase.position.set(bw / 2, bd / 2, -1.25);
-        plateBase.receiveShadow = true;
         group.add(plateBase);
       }
 
-      // Printable surface overlay (grid + official vendor SVG logo + bed type texture + exclusion zone)
+      // Printable surface overlay (unlit OrcaSlicer printbed.fs radial gradient + grid + official SVG logo + exclusion zone)
       const tex = createBedTexture(bw, bd, ws.bedType, logoImg, excludeArea);
       const bedGeo = new THREE.PlaneGeometry(bw, bd);
-      const bedMat = new THREE.MeshStandardMaterial({
+      const bedMat = new THREE.MeshBasicMaterial({
         map: tex,
-        roughness: ws.bedType.includes("Textured") ? 0.9 : 0.52,
-        metalness: 0.04,
         polygonOffset: true,
         polygonOffsetFactor: 1,
         polygonOffsetUnits: 1,
       });
       const bedMesh = new THREE.Mesh(bedGeo, bedMat);
       bedMesh.position.set(bw / 2, bd / 2, -0.02);
-      bedMesh.receiveShadow = true;
       group.add(bedMesh);
+
+      // Unified soft contact shadow receiver directly on the build plate (matches OrcaSlicer printbed_shadow.fs)
+      if (renderCfg.shadowsEnabled) {
+        const shadowGeo = new THREE.PlaneGeometry(bw, bd);
+        const shadowMat = new THREE.ShadowMaterial({
+          color: 0x000000,
+          opacity: 0.3,
+          transparent: true,
+          depthWrite: false,
+        });
+        const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+        shadowMesh.position.set(bw / 2, bd / 2, 0.01);
+        shadowMesh.receiveShadow = true;
+        group.add(shadowMesh);
+      }
 
       // Re-center shadow frustum cleanly on the active build plate
       if (keyLightRef.current) {
@@ -892,7 +918,14 @@ export function Viewport3D({
     return () => {
       cancelled = true;
     };
-  }, [ws.buildVolume, ws.bedType, ws.machineModel?.bed_model_url, ws.machineModel?.bed_texture_url, ws.bedExcludeArea]);
+  }, [
+    ws.buildVolume,
+    ws.bedType,
+    ws.machineModel?.bed_model_url,
+    ws.machineModel?.bed_texture_url,
+    ws.bedExcludeArea,
+    renderCfg.shadowsEnabled,
+  ]);
 
   // Rebuild Prepare 3D Models + SubParts + TransformControls + Cut Plane + Measure Line
   useEffect(() => {
@@ -931,25 +964,22 @@ export function Viewport3D({
       const isSelected = ws.tab === "prepare" && obj.id === ws.selectedObjectId;
       const mat =
         ws.tab === "preview"
-          ? new THREE.MeshStandardMaterial({
-              color: "#94a3b8",
-              transparent: true,
-              opacity: 0.16,
-              depthWrite: false,
+          ? createOrcaModelMaterial({
+              lightingModel: renderCfg.lightingModel,
+              buildVolume: ws.buildVolume,
+              opacity: 0.18,
+              overrideHex: "#94a3b8",
             })
-          : new THREE.MeshStandardMaterial({
-              vertexColors: true,
-              roughness: 0.46,
-              metalness: 0.04,
+          : createOrcaModelMaterial({
+              lightingModel: renderCfg.lightingModel,
+              buildVolume: ws.buildVolume,
+              selected: isSelected,
               wireframe: ws.wireframe,
-              emissive: new THREE.Color(isSelected ? "#0f2a4a" : "#000000"),
-              emissiveIntensity: isSelected ? 0.08 : 0,
             });
 
       const mesh = new THREE.Mesh(geom, mat);
       if (ws.tab === "prepare") {
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+        mesh.castShadow = renderCfg.shadowsEnabled;
       }
       mesh.position.set(obj.position[0], obj.position[1], obj.position[2]);
       mesh.rotation.set(
@@ -992,11 +1022,11 @@ export function Viewport3D({
           const spGeom = new THREE.BufferGeometry();
           spGeom.setAttribute("position", new THREE.BufferAttribute(sp.geometry.positions, 3));
           spGeom.setAttribute("normal", new THREE.BufferAttribute(sp.geometry.normals, 3));
-          const spMat = new THREE.MeshStandardMaterial({
-            color: subColors[sp.subtype],
-            transparent: true,
+          const spMat = createOrcaModelMaterial({
+            lightingModel: renderCfg.lightingModel,
+            buildVolume: ws.buildVolume,
             opacity: 0.38,
-            depthWrite: false,
+            overrideHex: subColors[sp.subtype],
           });
           const spMesh = new THREE.Mesh(spGeom, spMat);
           spMesh.position.set(
@@ -1077,6 +1107,7 @@ export function Viewport3D({
     ws.cutHeight,
     ws.measurePoints,
     ws.showGhost,
+    renderCfg.shadowsEnabled,
   ]);
 
   // Rebuild Preview G-code Toolpaths via direct WebGL2 port of OrcaSlicer's libvgcode volumetric renderer
@@ -1228,7 +1259,7 @@ export function Viewport3D({
       if (hotendGeom) {
         const nozzle = new THREE.Mesh(
           hotendGeom,
-          new THREE.MeshStandardMaterial({ color: "#e2e8f0", metalness: 0.72, roughness: 0.22 })
+          createOrcaHotbedMaterial("#b8c2d0", 0.08, false)
         );
         // Official bbl-3dp-hotend.stl has nozzle tip at Z=+12 and heatsink at Z=0; flip so tip points down onto bead
         nozzle.rotation.set(Math.PI, 0, 0);
@@ -1240,7 +1271,7 @@ export function Viewport3D({
         cone.rotateX(-Math.PI / 2);
         const nozzle = new THREE.Mesh(
           cone,
-          new THREE.MeshStandardMaterial({ color: "#d97706", metalness: 0.75, roughness: 0.25 })
+          createOrcaHotbedMaterial("#d97706", 0.14, false)
         );
         nozzle.position.set(nx, ny, nz + 4.1);
         extras.add(nozzle);
@@ -1318,19 +1349,31 @@ export function Viewport3D({
     return () => window.removeEventListener("orca-camera-preset", onCam);
   }, [setCameraPreset]);
 
-  // Dismiss SpaceMouse popover on outside click
+  // Dismiss SpaceMouse and Viewport Shading popovers on outside click
   useEffect(() => {
-    if (!smPopoverOpen) return;
+    if (!smPopoverOpen && !renderPopOpen) return;
     const onDown = (e: PointerEvent) => {
-      if (smPopRef.current && !smPopRef.current.contains(e.target as Node)) {
+      if (smPopoverOpen && smPopRef.current && !smPopRef.current.contains(e.target as Node)) {
         setSmPopoverOpen(false);
+      }
+      if (renderPopOpen && renderPopRef.current && !renderPopRef.current.contains(e.target as Node)) {
+        setRenderPopOpen(false);
       }
     };
     window.addEventListener("pointerdown", onDown);
     return () => window.removeEventListener("pointerdown", onDown);
-  }, [smPopoverOpen]);
+  }, [smPopoverOpen, renderPopOpen]);
+
+  const updateRenderCfg = (patch: Partial<OrcaViewportRenderConfig>) => {
+    setRenderCfg((prev) => {
+      const next = { ...prev, ...patch };
+      saveViewportRenderConfig(next);
+      return next;
+    });
+  };
 
   const handleSpaceMouseClick = async () => {
+    setRenderPopOpen(false);
     if (smStatus.connected) {
       setSmPopoverOpen((v) => !v);
       return;
@@ -1475,6 +1518,62 @@ export function Viewport3D({
             Wire
           </button>
         )}
+        <div ref={renderPopRef} style={{ position: "relative", display: "inline-flex" }}>
+          <button
+            className={`camera-btn ${renderPopOpen ? "active" : ""}`}
+            aria-label="Viewport rendering — shader, SSAO, and shadows"
+            title="Viewport rendering settings (Orca Studio / Classic, SSAO, Shadows)"
+            onClick={() => {
+              setRenderPopOpen((v) => !v);
+              setSmPopoverOpen(false);
+            }}
+          >
+            View
+          </button>
+
+          {renderPopOpen && (
+            <div className="spacemouse-popover" role="dialog" aria-label="Viewport rendering settings">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <strong style={{ fontSize: 12 }}>Viewport Shading</strong>
+                <span className="mono" style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
+                  Orca 2.5
+                </span>
+              </div>
+              <div className="segmented" role="group" aria-label="Lighting shader">
+                <button
+                  type="button"
+                  className={`segmented-btn ${renderCfg.lightingModel === "studio" ? "active" : ""}`}
+                  onClick={() => updateRenderCfg({ lightingModel: "studio" })}
+                >
+                  Studio
+                </button>
+                <button
+                  type="button"
+                  className={`segmented-btn ${renderCfg.lightingModel === "classic" ? "active" : ""}`}
+                  onClick={() => updateRenderCfg({ lightingModel: "classic" })}
+                >
+                  Orca Classic
+                </button>
+              </div>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={renderCfg.ssaoEnabled}
+                  onChange={(e) => updateRenderCfg({ ssaoEnabled: e.target.checked })}
+                />
+                Ambient occlusion (SSAO)
+              </label>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={renderCfg.shadowsEnabled}
+                  onChange={(e) => updateRenderCfg({ shadowsEnabled: e.target.checked })}
+                />
+                Plate contact shadows
+              </label>
+            </div>
+          )}
+        </div>
         <div ref={smPopRef} style={{ position: "relative", display: "inline-flex" }}>
           <button
             className={`camera-btn spacemouse-btn ${smStatus.connected ? "active" : ""}`}

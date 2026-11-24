@@ -12,6 +12,7 @@ import { parseGcode } from "./gcode";
 import { generateCalibrationModel } from "./calibration";
 import { buildVGCodeVertexStream } from "./vgcodeRenderer";
 import { applyDeadzoneCurve, parseSpaceMouseReport } from "./spacemouse";
+import { hexToSrgbRgb } from "./orcaShaders";
 import { exportPlateTo3MF } from "./threemf";
 import type { Plate } from "../types";
 
@@ -264,5 +265,36 @@ describe("libvgcode volumetric vertex stream", () => {
     expect(applyDeadzoneCurve(-0.04)).toBe(0);
     expect(applyDeadzoneCurve(1)).toBeCloseTo(1, 5);
     expect(applyDeadzoneCurve(-1)).toBeCloseTo(-1, 5);
+  });
+
+  it("auto-smooths curved mesh normals while preserving crisp 90-degree creases and sRGB vertex colors", () => {
+    const cube = createPrimitiveGeometry("cube", 20);
+    for (let i = 0; i < cube.normals.length; i += 3) {
+      const l1 = Math.abs(cube.normals[i]) + Math.abs(cube.normals[i + 1]) + Math.abs(cube.normals[i + 2]);
+      expect(l1).toBeCloseTo(1, 4);
+    }
+
+    const sphere = createPrimitiveGeometry("sphere", 20);
+    const cx = (sphere.bounds.min[0] + sphere.bounds.max[0]) * 0.5;
+    const cy = (sphere.bounds.min[1] + sphere.bounds.max[1]) * 0.5;
+    const cz = (sphere.bounds.min[2] + sphere.bounds.max[2]) * 0.5;
+    let minDot = 1;
+    for (let i = 0; i < sphere.positions.length; i += 3) {
+      const dx = sphere.positions[i] - cx;
+      const dy = sphere.positions[i + 1] - cy;
+      const dz = sphere.positions[i + 2] - cz;
+      const len = Math.hypot(dx, dy, dz) || 1;
+      const dot =
+        (dx / len) * sphere.normals[i] +
+        (dy / len) * sphere.normals[i + 1] +
+        (dz / len) * sphere.normals[i + 2];
+      if (dot < minDot) minDot = dot;
+    }
+    expect(minDot).toBeGreaterThan(0.98);
+
+    const [r, g, b] = hexToSrgbRgb("#22c55e");
+    expect(r).toBeCloseTo(34 / 255, 5);
+    expect(g).toBeCloseTo(197 / 255, 5);
+    expect(b).toBeCloseTo(94 / 255, 5);
   });
 });

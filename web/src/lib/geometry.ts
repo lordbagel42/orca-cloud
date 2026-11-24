@@ -5,9 +5,76 @@ export function uid(prefix = "id"): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
 }
 
+/**
+ * Compute smooth vertex normals for curved faces while preserving hard creases above `creaseDeg`
+ * (just like OrcaSlicer / Blender Auto-Smooth). Uses a fast quantized spatial hash in O(N).
+ */
+function computeAutoSmoothNormals(positions: Float32Array, faceNormals: Float32Array, creaseDeg = 38): Float32Array {
+  const triCount = Math.floor(positions.length / 9);
+  if (triCount === 0) return faceNormals;
+  const cosThresh = Math.cos((creaseDeg * Math.PI) / 180);
+
+  // Group triangle corner indices by quantized vertex position (0.001 mm tolerance)
+  const buckets = new Map<string, number[]>();
+  for (let t = 0; t < triCount; t++) {
+    const base = t * 9;
+    for (let c = 0; c < 3; c++) {
+      const i = base + c * 3;
+      const key = `${Math.round(positions[i] * 1000)},${Math.round(positions[i + 1] * 1000)},${Math.round(positions[i + 2] * 1000)}`;
+      let list = buckets.get(key);
+      if (!list) {
+        list = [];
+        buckets.set(key, list);
+      }
+      list.push(t);
+    }
+  }
+
+  const out = new Float32Array(triCount * 9);
+  for (let t = 0; t < triCount; t++) {
+    const base = t * 9;
+    const fnx = faceNormals[base];
+    const fny = faceNormals[base + 1];
+    const fnz = faceNormals[base + 2];
+
+    for (let c = 0; c < 3; c++) {
+      const i = base + c * 3;
+      const key = `${Math.round(positions[i] * 1000)},${Math.round(positions[i + 1] * 1000)},${Math.round(positions[i + 2] * 1000)}`;
+      const adj = buckets.get(key);
+      if (!adj || adj.length <= 1 || adj.length > 48) {
+        out[i] = fnx;
+        out[i + 1] = fny;
+        out[i + 2] = fnz;
+        continue;
+      }
+      let sx = 0, sy = 0, sz = 0;
+      for (let k = 0; k < adj.length; k++) {
+        const nb = adj[k] * 9;
+        const nx = faceNormals[nb], ny = faceNormals[nb + 1], nz = faceNormals[nb + 2];
+        if (fnx * nx + fny * ny + fnz * nz >= cosThresh) {
+          sx += nx;
+          sy += ny;
+          sz += nz;
+        }
+      }
+      const len = Math.hypot(sx, sy, sz);
+      if (len > 1e-8) {
+        out[i] = sx / len;
+        out[i + 1] = sy / len;
+        out[i + 2] = sz / len;
+      } else {
+        out[i] = fnx;
+        out[i + 1] = fny;
+        out[i + 2] = fnz;
+      }
+    }
+  }
+  return out;
+}
+
 export function buildGeometryData(positions: Float32Array): GeometryData {
   const triCount = Math.floor(positions.length / 9);
-  const normals = new Float32Array(triCount * 9);
+  const faceNormals = new Float32Array(triCount * 9);
   let minX = Infinity, minY = Infinity, minZ = Infinity;
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
   let signedVol6 = 0;
@@ -35,9 +102,9 @@ export function buildGeometryData(positions: Float32Array): GeometryData {
     areaSum += len * 0.5;
     const inv = len > 1e-12 ? 1 / len : 0;
     const unx = nx * inv, uny = ny * inv, unz = nz * inv;
-    normals[o] = unx; normals[o + 1] = uny; normals[o + 2] = unz;
-    normals[o + 3] = unx; normals[o + 4] = uny; normals[o + 5] = unz;
-    normals[o + 6] = unx; normals[o + 7] = uny; normals[o + 8] = unz;
+    faceNormals[o] = unx; faceNormals[o + 1] = uny; faceNormals[o + 2] = unz;
+    faceNormals[o + 3] = unx; faceNormals[o + 4] = uny; faceNormals[o + 5] = unz;
+    faceNormals[o + 6] = unx; faceNormals[o + 7] = uny; faceNormals[o + 8] = unz;
 
     // Signed tetrahedron volume * 6 = a . (b x c)
     const bcx = by * cz - bz * cy;
@@ -57,8 +124,11 @@ export function buildGeometryData(positions: Float32Array): GeometryData {
     center: [(minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2],
   };
 
+  const posSlice = positions.subarray(0, triCount * 9);
+  const normals = triCount <= 150000 ? computeAutoSmoothNormals(posSlice, faceNormals, 38) : faceNormals;
+
   return {
-    positions: positions.subarray(0, triCount * 9),
+    positions: posSlice,
     normals,
     triangleCount: triCount,
     bounds,
