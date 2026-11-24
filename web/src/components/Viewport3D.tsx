@@ -53,14 +53,6 @@ function createBedTexture(
     }
   }
 
-  // Official vendor SVG silkscreen texture (e.g. bbl-3dp-logo.svg)
-  if (logoImg) {
-    ctx.save();
-    ctx.globalAlpha = 0.55;
-    ctx.drawImage(logoImg, 0, 0, cw, ch);
-    ctx.restore();
-  }
-
   // Minor 10mm grid + Major 50mm grid
   for (let x = 0; x <= width; x += 10) {
     const px = (x / width) * cw;
@@ -81,6 +73,14 @@ function createBedTexture(
     ctx.moveTo(0, py);
     ctx.lineTo(cw, py);
     ctx.stroke();
+  }
+
+  // Official vendor SVG silkscreen texture (e.g. bbl-3dp-logo.svg) drawn cleanly above grid
+  if (logoImg) {
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.drawImage(logoImg, 0, 0, cw, ch);
+    ctx.restore();
   }
 
   // Official printer bed exclusion area (e.g. Bambu Lab P1S front-left 18x28mm filament cutter zone)
@@ -122,26 +122,29 @@ function createBedTexture(
     ctx.restore();
   }
 
-  // Outer border
-  ctx.strokeStyle = pal.accent;
-  ctx.lineWidth = 4;
-  ctx.strokeRect(2, 2, cw - 4, ch - 4);
+  // Subtle neutral hairline border matching desktop OrcaSlicer (no heavy colored frame)
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.09)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(1, 1, cw - 2, ch - 2);
 
-  // Coordinate labels along left edge (Y) and top edge (X), keeping front edge clean for plate name
-  ctx.fillStyle = "rgba(226,232,240,0.42)";
-  ctx.font = `600 ${Math.round(cw * 0.017)}px monospace`;
+  // Coordinate labels along left edge (Y) and top edge (X)
+  ctx.fillStyle = "rgba(226,232,240,0.38)";
+  ctx.font = `600 ${Math.round(cw * 0.016)}px monospace`;
   ctx.textAlign = "left";
   for (let x = 50; x < width; x += 50) {
     const px = (x / width) * cw;
-    ctx.fillText(String(x), px + 4, Math.round(cw * 0.025));
+    ctx.fillText(String(x), px + 4, Math.round(cw * 0.024));
   }
   for (let y = 50; y < depth; y += 50) {
     const py = ch - (y / depth) * ch;
     ctx.fillText(String(y), 8, py - 4);
   }
-  ctx.textAlign = "center";
-  ctx.font = `600 ${Math.round(cw * 0.02)}px sans-serif`;
-  ctx.fillText(`FRONT · ${bedType.toUpperCase()}`, cw / 2, ch - 12);
+  // Only draw generic FRONT label when the printer has no official vendor bed SVG (avoids overlapping vendor markings)
+  if (!logoImg) {
+    ctx.textAlign = "center";
+    ctx.font = `600 ${Math.round(cw * 0.019)}px sans-serif`;
+    ctx.fillText(`FRONT · ${bedType.toUpperCase()}`, cw / 2, ch - 12);
+  }
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
