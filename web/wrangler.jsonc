@@ -16,5 +16,8 @@
       "pattern": "orca.bagelindustries.com/*",
       "zone_name": "bagelindustries.com"
     }
-  ]
+  ],
+  "observability": {
+    "enabled": true
+  }
 }

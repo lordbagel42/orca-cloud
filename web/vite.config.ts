@@ -237,11 +237,10 @@ function orcaBundledDevPlugin(): Plugin {
           reqNode.on("end", async () => {
             try {
               const bodyBuf = Buffer.concat(chunks);
-              const headers: Record<string, string> = {};
-              if (reqNode.headers["content-type"]) headers["Content-Type"] = String(reqNode.headers["content-type"]);
+              // Bambu S3 SigV2 presigned PUT URLs sign an empty Content-Type; omit Content-Type so S3 accepts the signature
               const upstream = await fetch(parsed.toString(), {
                 method: "PUT",
-                headers,
+                headers: { "Content-Length": String(bodyBuf.byteLength) },
                 body: bodyBuf,
               });
               const out = Buffer.from(await upstream.arrayBuffer());

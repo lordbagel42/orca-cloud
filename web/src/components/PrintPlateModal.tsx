@@ -86,9 +86,12 @@ export function PrintPlateModal({ open, onClose, onOpenConnect, bambu, ws }: Pro
         apiBase: bambu.state.apiBase,
         credential: bambu.state.credential,
         serial: targetPrinter.serial,
+        printerModel: targetPrinter.model,
+        nozzleDiameter: liveState?.nozzleDiameter,
         job3mfBytes: bytes,
         fileName,
         subtaskName: firstObj,
+        plateName: ws.activePlate.name || "plate_1",
         bedType: ws.bedType,
         useAms,
         amsMapping: mapping,
@@ -100,10 +103,8 @@ export function PrintPlateModal({ open, onClose, onOpenConnect, bambu, ws }: Pro
         onProgress: setProgressMsg,
       });
 
-      ws.notify(
-        `Print sent to ${targetPrinter.name}${res.sequenceId ? ` (seq #${res.sequenceId})` : ""}`,
-        "success"
-      );
+      const ref = res.taskId ? `task #${res.taskId}` : res.sequenceId ? `seq #${res.sequenceId}` : "";
+      ws.notify(`Print sent to ${targetPrinter.name}${ref ? ` (${ref})` : ""}`, "success");
       onClose();
     } catch (err) {
       setSendError(err instanceof Error ? err.message : String(err));

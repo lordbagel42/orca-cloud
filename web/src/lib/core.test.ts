@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { unzipSync, zipSync } from "fflate";
 import {
   arrangeObjectsOnBed,
   createPrimitiveGeometry,
@@ -14,11 +15,14 @@ import { buildVGCodeVertexStream } from "./vgcodeRenderer";
 import { applyDeadzoneCurve, parseSpaceMouseReport } from "./spacemouse";
 import { hexToSrgbRgb } from "./orcaShaders";
 import {
+  ensureBambuPrinterModelId,
   mapBambuModelToMachineName,
   mapBedTypeToBambuParam,
   md5Hex,
   normalizeBambuColorHex,
+  normalizeBambuModelId,
   parseBambuDeviceState,
+  sendSlicedPlateToBambuPrinter,
 } from "./bambuApi";
 import { exportPlateTo3MF } from "./threemf";
 import type { Plate } from "../types";
@@ -349,5 +353,194 @@ describe("libvgcode volumetric vertex stream", () => {
     expect(parsed.amsTrays[0]).toMatchObject({ globalSlot: 0, material: "PLA", colorHex: "#22c55e", isExternal: false });
     expect(parsed.amsTrays[1]).toMatchObject({ globalSlot: 1, material: "PETG", colorHex: "#38bdf8", isExternal: false });
     expect(parsed.amsTrays[2]).toMatchObject({ globalSlot: 254, material: "TPU", colorHex: "#111111", isExternal: true });
+  });
+
+  it("patches empty printer_model_id in 3MF slice_info.config while preserving gcode bytes", () => {
+    expect(normalizeBambuModelId("A1 mini")).toBe("N1");
+    expect(normalizeBambuModelId("N1")).toBe("N1");
+    expect(normalizeBambuModelId("Bambu Lab P1S")).toBe("C12");
+    expect(normalizeBambuModelId("X1 Carbon")).toBe("BL-P001");
+
+    const gcodeBytes = new TextEncoder().encode("G28\nG1 X10 Y10 E1.2\n");
+    const md5Bytes = new TextEncoder().encode("DEADBEEF");
+    const rawZip = zipSync({
+      "Metadata/slice_info.config": new TextEncoder().encode(
+        '<?xml version="1.0"?><config><plate><metadata key="printer_model_id" value=""/><metadata key="index" value="1"/></plate></config>'
+      ),
+      "Metadata/plate_1.gcode": gcodeBytes,
+      "Metadata/plate_1.gcode.md5": md5Bytes,
+    });
+
+    const patched = ensureBambuPrinterModelId(rawZip, "A1 mini");
+    const entries = unzipSync(patched);
+    const xml = new TextDecoder().decode(entries["Metadata/slice_info.config"]);
+    expect(xml).toContain('<metadata key="printer_model_id" value="N1"/>');
+    expect(entries["Metadata/plate_1.gcode"]).toEqual(gcodeBytes);
+    expect(entries["Metadata/plate_1.gcode.md5"]).toEqual(md5Bytes);
+
+    // Already-populated printer_model_id is left untouched
+    const unchanged = ensureBambuPrinterModelId(patched, "C12");
+    expect(unchanged).toBe(patched);
+  });
+
+  it("executes the 6-step Bambu Cloud project upload + signed task flow without S3 Content-Type", async () => {
+    const rawZip = zipSync({
+      "Metadata/slice_info.config": new TextEncoder().encode(
+        '<?xml version="1.0"?><config><plate><metadata key="printer_model_id" value=""/></plate></config>'
+      ),
+      "Metadata/plate_1.gcode": new TextEncoder().encode("G28\n"),
+    });
+    const expectedPatched = ensureBambuPrinterModelId(rawZip, "N1");
+    const expectedMd5Upper = md5Hex(expectedPatched).toUpperCase();
+
+    const calls: Array<{ url: string; method: string; headers: Record<string, string>; body: unknown }> = [];
+    let notifPoll = 0;
+
+    const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method || "GET").toUpperCase();
+      const headers: Record<string, string> = {};
+      if (init?.headers) {
+        for (const [k, v] of Object.entries(init.headers as Record<string, string>)) {
+          headers[k.toLowerCase()] = String(v);
+        }
+      }
+      const parsedBody =
+        typeof init?.body === "string"
+          ? JSON.parse(init.body)
+          : init?.body instanceof Uint8Array
+            ? init.body
+            : null;
+      calls.push({ url, method, headers, body: parsedBody });
+
+      const jsonResp = (payload: unknown, status = 200, extraHeaders: Record<string, string> = {}) =>
+        new Response(JSON.stringify(payload), {
+          status,
+          headers: { "Content-Type": "application/json", ...extraHeaders },
+        });
+
+      if (url.endsWith("/v1/cloud/iot-service/api/user/project") && method === "POST") {
+        return jsonResp({
+          message: "success",
+          project_id: "1146260287",
+          model_id: "USbb2a39e38e2b17",
+          profile_id: "1135130549",
+          upload_url: "https://s3.us-west-2.amazonaws.com/or-cloud-upload-prod/profile.3mf?Signature=abc",
+          upload_ticket: "uploader_ticket_1",
+        });
+      }
+      if (url === "/bambu-upload" && method === "PUT") {
+        // S3 SigV2 rejects any non-empty Content-Type header with 403 SignatureDoesNotMatch
+        expect(headers["content-type"]).toBeUndefined();
+        return new Response("", { status: 200 });
+      }
+      if (url.endsWith("/v1/cloud/iot-service/api/user/notification") && method === "PUT") {
+        return jsonResp({ message: "success" });
+      }
+      if (url.includes("/v1/cloud/iot-service/api/user/notification?") && method === "GET") {
+        notifPoll++;
+        return jsonResp({ message: notifPoll === 1 ? "running" : "success" });
+      }
+      if (url.includes("/v1/cloud/iot-service/api/user/upload?models=USbb2a39e38e2b17_1135130549_1.3mf")) {
+        return jsonResp({
+          message: "success",
+          urls: [
+            {
+              type: "models",
+              file: "USbb2a39e38e2b17_1135130549_1.3mf",
+              url: "https://s3.us-west-2.amazonaws.com/or-cloud-upload-prod/print.3mf?Signature=def",
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/v1/cloud/iot-service/api/user/project/1146260287") && method === "PATCH") {
+        return jsonResp({ message: "success" });
+      }
+      if (url.endsWith("/v1/cloud/iot-service/api/user/project/1146260287") && method === "GET") {
+        return jsonResp({
+          profiles: [
+            {
+              context: {
+                compatibility: { nozzleDiameter: 0.4 },
+                plates: [{ index: 1, id: 777, name: "Plate 1", thumbnail: { url: "https://cdn.bambulab.com/thumb.png" } }],
+              },
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/v1/cloud/user-service/my/task") && method === "POST") {
+        return jsonResp({ message: "success", task_id: "998877" });
+      }
+      throw new Error(`Unexpected fetch call: ${method} ${url}`);
+    });
+
+    vi.stubGlobal("fetch", mockFetch);
+    try {
+      const res = await sendSlicedPlateToBambuPrinter({
+        apiBase: "/bambu-api",
+        credential: "bk_test_key",
+        serial: "0300CA631305524",
+        printerModel: "N1",
+        nozzleDiameter: "0.4",
+        job3mfBytes: rawZip,
+        fileName: "cube.gcode.3mf",
+        subtaskName: "Test Cube",
+        plateName: "Plate 1",
+        bedType: "Textured PEI Plate",
+        useAms: true,
+        amsMapping: [0, 2],
+        bedLeveling: true,
+        flowCali: true,
+        vibrationCali: false,
+        timelapse: false,
+        layerInspect: false,
+        pollIntervalMs: 0,
+      });
+
+      expect(res).toMatchObject({
+        taskId: "998877",
+        projectId: "1146260287",
+        modelId: "USbb2a39e38e2b17",
+        profileId: "1135130549",
+      });
+
+      const patchCall = calls.find((c) => c.method === "PATCH");
+      expect(patchCall?.body).toEqual({
+        profile_id: "1135130549",
+        profile_print_3mf: [
+          {
+            md5: expectedMd5Upper,
+            plate_idx: 1,
+            url: "https://s3.us-west-2.amazonaws.com/or-cloud-upload-prod/print.3mf?Signature=def",
+          },
+        ],
+      });
+
+      const taskCall = calls.find((c) => c.url.endsWith("/v1/cloud/user-service/my/task"));
+      expect(taskCall?.body).toMatchObject({
+        modelId: "USbb2a39e38e2b17",
+        profileId: 1135130549,
+        deviceId: "0300CA631305524",
+        plateId: 777,
+        plateIndex: 1,
+        plateName: "Plate 1",
+        cover: "https://cdn.bambulab.com/thumb.png",
+        mode: "cloud_file",
+        useAms: true,
+        amsMapping: [0, 2],
+        amsMapping2: [
+          { amsId: 0, slotId: 0 },
+          { amsId: 0, slotId: 2 },
+        ],
+        bedType: "textured_plate",
+        nozzleDiameter: 0.4,
+        jobType: 1,
+        repetitions: 1,
+        isPublicProfile: false,
+        checkPreset: 1,
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

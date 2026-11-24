@@ -70,10 +70,13 @@ export default {
       const bambuOrigin = (env.BAMBU_API_ORIGIN || "https://bambuapi.raygen.dev").replace(/\/+$/, "");
       const targetUrl = `${bambuOrigin}${bambuPath}${url.search}`;
       const headers = new Headers();
-      for (const name of ["Content-Type", "Accept", "Authorization", "X-API-Key"]) {
+      for (const name of ["Content-Type", "Accept", "Authorization", "X-API-Key", "X-Bambu-Signed"]) {
         const val = request.headers.get(name);
         if (val) headers.set(name, val);
       }
+      request.headers.forEach((val, key) => {
+        if (key.toLowerCase().startsWith("x-bbl-")) headers.set(key, val);
+      });
       headers.set("User-Agent", "OrcaCloudWebProxy/1.0");
       const upstream = await fetch(targetUrl, {
         method: request.method,
@@ -109,9 +112,8 @@ export default {
           headers: { "Content-Type": "application/json" },
         });
       }
+      // Bambu S3 SigV2 presigned PUT URLs sign an empty Content-Type; forwarding any Content-Type causes 403 SignatureDoesNotMatch
       const putHeaders = new Headers();
-      const ct = request.headers.get("Content-Type");
-      if (ct) putHeaders.set("Content-Type", ct);
       const cl = request.headers.get("Content-Length");
       if (cl) putHeaders.set("Content-Length", cl);
       const upstream = await fetch(parsedTarget.toString(), {
