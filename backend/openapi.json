@@ -2,112 +2,36 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Native OrcaSlicer Job API",
-    "version": "1.0.0",
-    "description": "Slice raw STL models in millimeters using native OrcaSlicer 2.5.0. This API never contacts printers. One running job, four queued/uploading jobs, 300 second wall runtime, 20 MiB upload, 64 MiB G-code, 16 retained jobs and 24 hour retention from creation. Admission returns 429 when queue or retained capacity is full. Native scratch is a 256 MiB tmpfs; completed G-code is published atomically. All job routes require a new service-specific bearer token. Timestamps are Unix epoch seconds; status_url/output_url are relative to this server. Review G-code and printer/material compatibility before using it."
+    "version": "2.1.0",
+    "description": "Slice STL and 3MF models in millimeters using native OrcaSlicer 2.5.0 with full official profile catalog (72 vendors, 14,275 profiles), multi-filament support, preserve_xy placement, and native mesh utilities. Never connects to or operates printers."
   },
-  "servers": [{"url": "https://orca.bagelindustries.com"}],
-  "security": [{"bearerAuth": []}],
+  "servers": [{ "url": "https://orca.bagelindustries.com" }],
   "paths": {
-    "/healthz": {
-      "get": {
-        "operationId": "health",
-        "summary": "Service health and configured limits",
-        "security": [],
-        "responses": {"200": {"description": "Service is accepting HTTP requests", "content": {"application/json": {"schema": {"type": "object"}}}}}
-      }
-    },
-    "/v1/presets": {
-      "get": {
-        "operationId": "listPresets",
-        "summary": "List fixed printer/nozzle/material presets and limits",
-        "security": [],
-        "responses": {"200": {"description": "Available presets", "content": {"application/json": {"schema": {"type": "object", "required": ["presets", "limits"], "properties": {"presets": {"type": "array", "items": {"$ref": "#/components/schemas/Preset"}}, "limits": {"type": "object"}}}}}}}
-      }
+    "/healthz": { "get": { "operationId": "health", "summary": "Service health, API version, capabilities and limits", "responses": { "200": { "description": "OK" } } } },
+    "/v1/presets": { "get": { "operationId": "listPresets", "summary": "List legacy fixed preset and limits", "responses": { "200": { "description": "OK" } } } },
+    "/v2/profiles": { "get": { "operationId": "profiles", "summary": "Search pinned official OrcaSlicer 2.5.0 profiles", "responses": { "200": { "description": "OK" } } } },
+    "/v2/profiles/vendors": { "get": { "operationId": "profileVendors", "summary": "List all official profile vendors and counts", "responses": { "200": { "description": "OK" } } } },
+    "/v2/profiles/detail": { "get": { "operationId": "profileDetail", "summary": "Read flattened official profile settings and printer bed geometry", "responses": { "200": { "description": "OK" } } } },
+    "/v2/settings": { "get": { "operationId": "settings", "summary": "List native OrcaSlicer setting classifications and defaults", "responses": { "200": { "description": "OK" } } } },
+    "/v2/profiles/resolve": { "post": { "operationId": "resolveConfiguration", "summary": "Flatten and validate a configuration without persisting it", "responses": { "200": { "description": "OK" }, "422": { "description": "Validation failed" } } } },
+    "/v2/configurations": { "post": { "operationId": "createConfiguration", "summary": "Persist an immutable content-addressed configuration handle", "responses": { "201": { "description": "Created" }, "422": { "description": "Validation failed" } } } },
+    "/v2/configurations/{id}": {
+      "get": { "operationId": "getConfiguration", "summary": "Fetch a retained configuration handle", "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } } },
+      "delete": { "operationId": "deleteConfiguration", "summary": "Delete a retained configuration handle", "responses": { "204": { "description": "Deleted" }, "404": { "description": "Not found" } } }
     },
     "/v1/jobs": {
-      "post": {
-        "operationId": "createSliceJob",
-        "summary": "Upload one STL and queue a slice",
-        "description": "Send raw binary or ASCII STL, not multipart, base64, a URL, or JSON. Content-Length is required. Models must have finite coordinates within 10000 mm of origin and positive dimensions no greater than 180x180x180 mm. The service arranges the object onto the plate without changing its scale. No arbitrary flags, custom G-code, profiles, remote fetches or printer actions are supported.",
-        "parameters": [{"name": "preset", "in": "query", "required": true, "schema": {"type": "string", "enum": ["bambu-a1-mini-0.4-pla"]}}],
-        "requestBody": {"required": true, "content": {
-          "model/stl": {"schema": {"type": "string", "format": "binary", "maxLength": 20971520}},
-          "application/octet-stream": {"schema": {"type": "string", "format": "binary", "maxLength": 20971520}}
-        }},
-        "responses": {
-          "202": {"description": "Queued; poll status_url until succeeded or failed", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Job"}}}},
-          "400": {"$ref": "#/components/responses/InvalidRequest"},
-          "401": {"$ref": "#/components/responses/Unauthorized"},
-          "413": {"description": "Body is empty or exceeds 20 MiB", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
-          "415": {"description": "Content-Type is not model/stl or application/octet-stream", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
-          "422": {"description": "Invalid STL, nonfinite coordinates, invalid dimensions, or incomplete upload", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
-          "429": {"description": "Queue or retained job capacity reached; retry after slots expire", "headers": {"Retry-After": {"schema": {"type": "integer", "example": 30}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
-          "503": {"description": "Insufficient storage", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
-        }
-      }
+      "get": { "operationId": "listJobs", "summary": "List retained slicing jobs", "responses": { "200": { "description": "OK" } } },
+      "post": { "operationId": "createSliceJob", "summary": "Queue legacy fixed-preset STL slice", "responses": { "202": { "description": "Queued" } } }
     },
+    "/v2/jobs": { "post": { "operationId": "createConfiguredJob", "summary": "Queue STL or 3MF slice against a configuration handle", "responses": { "202": { "description": "Queued" } } } },
     "/v1/jobs/{id}": {
-      "delete": {
-        "operationId": "deleteSliceJob",
-        "summary": "Delete a completed or failed job and release its storage slot",
-        "description": "Only terminal succeeded/failed jobs may be deleted. Queued/running/uploading jobs return 409; this is not cancellation. Removal is serialized with status reads and persisted deletion is recovered after restart.",
-        "parameters": [{"$ref": "#/components/parameters/JobId"}],
-        "responses": {
-          "204": {"description": "Job record and output removed"},
-          "401": {"$ref": "#/components/responses/Unauthorized"},
-          "404": {"$ref": "#/components/responses/NotFound"},
-          "409": {"description": "Job is not terminal", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
-        }
-      },
-      "get": {
-        "operationId": "getSliceJob",
-        "summary": "Inspect slice status and output metadata",
-        "description": "Queued jobs survive service restart. Running or partially uploaded jobs become failed on restart. Terminal jobs and G-code survive restarts until their expiry. A failed job never provides downloadable output.",
-        "parameters": [{"$ref": "#/components/parameters/JobId"}],
-        "responses": {
-          "200": {"description": "Current job", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Job"}}}},
-          "401": {"$ref": "#/components/responses/Unauthorized"},
-          "404": {"$ref": "#/components/responses/NotFound"}
-        }
-      }
+      "get": { "operationId": "getSliceJob", "summary": "Read job status, summary, plates and native feedback", "responses": { "200": { "description": "OK" } } },
+      "delete": { "operationId": "deleteSliceJob", "summary": "Delete terminal job", "responses": { "204": { "description": "Deleted" } } }
     },
-    "/v1/jobs/{id}/gcode": {
-      "get": {
-        "operationId": "downloadGcode",
-        "summary": "Download completed single-plate G-code",
-        "parameters": [{"$ref": "#/components/parameters/JobId"}],
-        "responses": {
-          "200": {"description": "Completed G-code attachment; verify length and SHA-256 against the job metadata", "headers": {"Content-Length": {"schema": {"type": "integer"}}, "Content-Disposition": {"schema": {"type": "string"}}}, "content": {"text/x.gcode": {"schema": {"type": "string", "format": "binary"}}}},
-          "401": {"$ref": "#/components/responses/Unauthorized"},
-          "404": {"$ref": "#/components/responses/NotFound"},
-          "409": {"description": "Job has not succeeded", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
-        }
-      }
-    }
-  },
-  "components": {
-    "securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer", "description": "Service-specific ORCA_API_KEY. Never use a printer or Bambu account credential."}},
-    "parameters": {"JobId": {"name": "id", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[a-f0-9]{32}$"}}},
-    "responses": {
-      "Unauthorized": {"description": "Missing or invalid bearer token", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
-      "InvalidRequest": {"description": "Unsupported preset/query or invalid HTTP framing", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
-      "NotFound": {"description": "Unknown or expired job", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
-    },
-    "schemas": {
-      "Error": {"type": "object", "required": ["error"], "properties": {"error": {"type": "string"}, "status": {"type": "string"}}},
-      "Preset": {"type": "object", "required": ["id", "printer", "nozzle_mm", "material", "process"], "properties": {
-        "id": {"type": "string", "enum": ["bambu-a1-mini-0.4-pla"]}, "printer": {"type": "string", "example": "Bambu Lab A1 mini"}, "nozzle_mm": {"type": "number", "example": 0.4}, "material": {"type": "string", "example": "Generic PLA"}, "process": {"type": "string", "example": "0.20mm Standard @BBL A1M"}, "bed": {"type": "string", "example": "Textured PEI Plate"}, "build_volume_mm": {"type": "array", "items": {"type": "number"}}, "units": {"type": "string", "example": "millimeters"}
-      }},
-      "Job": {"type": "object", "required": ["id", "status", "preset", "created_at", "expires_at", "status_url", "output_url"], "properties": {
-        "id": {"type": "string", "pattern": "^[a-f0-9]{32}$"},
-        "status": {"type": "string", "enum": ["queued", "running", "succeeded", "failed"]},
-        "preset": {"type": "string"},
-        "created_at": {"type": "number"}, "expires_at": {"type": "number"}, "started_at": {"type": "number"}, "finished_at": {"type": "number"},
-        "status_url": {"type": "string"}, "output_url": {"type": "string"}, "error": {"type": "string"},
-        "model_dimensions_mm": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
-        "output_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864}, "output_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-        "summary": {"type": "object", "properties": {"gcode_bytes": {"type": "integer"}, "sha256": {"type": "string"}, "slice_duration_seconds": {"type": "number"}, "estimated_print_time": {"type": "string"}, "filament_used_grams": {"type": "string"}, "layer_count": {"type": "string"}}}
-      }}
-    }
+    "/v1/jobs/{id}/gcode": { "get": { "operationId": "downloadGcode", "summary": "Download sliced plate G-code (?plate=N)", "responses": { "200": { "description": "G-code" } } } },
+    "/v1/jobs/{id}/3mf": { "get": { "operationId": "download3mf", "summary": "Download sliced 3MF project archive", "responses": { "200": { "description": "3MF" } } } },
+    "/v2/mesh/repair": { "post": { "operationId": "repairMesh", "summary": "Run native OrcaSlicer --repair on an STL", "responses": { "200": { "description": "Repaired STL" } } } },
+    "/v2/mesh/auto-orient": { "post": { "operationId": "autoOrientMesh", "summary": "Run native OrcaSlicer --orient 1 on an STL", "responses": { "200": { "description": "Oriented STL" } } } },
+    "/v2/mesh/inspect": { "post": { "operationId": "inspectMesh", "summary": "Run native OrcaSlicer --inspect-mesh for bounding box and lay-on-face hull", "responses": { "200": { "description": "Mesh JSON" } } } }
   }
 }

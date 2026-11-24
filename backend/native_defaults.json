@@ -1,0 +1,4726 @@
+{
+  "provenance": {
+    "slicer": "OrcaSlicer",
+    "version": "2.5.0",
+    "binary_sha256": "d13eb0a9cd618ed080ab6b82c64c0a60c4501aac91e88d5ac2c3b526fb141a7c",
+    "profiles_commit": "40ecc66f78ed72dc368e0c1ebe40d77f00cc8a19",
+    "source_url": "https://github.com/OrcaSlicer/OrcaSlicer/tree/40ecc66f78ed72dc368e0c1ebe40d77f00cc8a19"
+  },
+  "value_format": "Orca JSON string or array of strings (e.g. '0.20', '15%', ['220'])",
+  "limitations": [
+    "Exported settings prove values loaded by Orca, not activation of conditional settings, physical nozzle/material identity or print safety.",
+    "Official profiles can contain legacy/unsupported fields and native normalization; each is reported, not assumed applied.",
+    "Custom G-code is output text only; no post-processing, filesystem routing or network/printer connectivity.",
+    "Geometry is bounded by the resolved printer area/height and a 1000 mm service safety ceiling; native validation checks actual bed fit.",
+    "Unspecified fields use pinned native defaults, never an implicit A1 preset; exported defaults and all effective values are reported."
+  ],
+  "settings": {
+    "_comment": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "accel_to_decel": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "accel_to_decel_enable": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "accel_to_decel_factor": {
+      "classification": "native_exportable",
+      "native_default": "50%"
+    },
+    "acceleration_limit_mess": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "acceleration_limit_mess_enable": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "activate_air_filtration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "activate_air_filtration_during_print": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "activate_air_filtration_on_completion": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "activate_chamber_layer": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "activate_chamber_temp_control": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "adaptive_bed_mesh_margin": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "adaptive_infill_gradient": {
+      "classification": "native_exportable",
+      "native_default": "linear"
+    },
+    "adaptive_infill_interior_density": {
+      "classification": "native_exportable",
+      "native_default": "5%"
+    },
+    "adaptive_infill_mode": {
+      "classification": "native_exportable",
+      "native_default": "disabled"
+    },
+    "adaptive_pressure_advance": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "adaptive_pressure_advance_bridges": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "adaptive_pressure_advance_model": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0,0,0\n0,0,0"
+      ]
+    },
+    "adaptive_pressure_advance_overhangs": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "additional_cooling_fan_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "additional_cooling_fan_speed_unseal": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "additional_fan_full_speed_layer": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "ai_infill": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "align_infill_direction_to_model": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "alternate_extra_wall": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "ams_filament_load_time_ams": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "ams_filament_load_time_ams_lite": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "ams_filament_load_time_n3f_s": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "ams_filament_unload_time_ams": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "ams_filament_unload_time_ams_lite": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "ams_filament_unload_time_n3f_s": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "apply_top_surface_compensation": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "auto_disable_filter_on_overheat": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "auto_toolchange_command": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "auxiliary_fan": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "avoid_crossing_wall_includes_support": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "bbl_calib_mark_logo": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "bbl_use_printhost": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "bed_custom_model": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "bed_custom_texture": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "bed_exclude_area": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0x0"
+      ]
+    },
+    "bed_exclude_volume_mode": {
+      "classification": "native_exportable",
+      "native_default": "shared"
+    },
+    "bed_exclude_volumes": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "bed_heat_soak_area": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "bed_mesh_max": {
+      "classification": "native_exportable",
+      "native_default": "99999,99999"
+    },
+    "bed_mesh_min": {
+      "classification": "native_exportable",
+      "native_default": "-99999,-99999"
+    },
+    "bed_mesh_probe_distance": {
+      "classification": "native_exportable",
+      "native_default": "50,50"
+    },
+    "bed_model": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "bed_shape": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "bed_temperature_formula": {
+      "classification": "native_exportable",
+      "native_default": "by_highest_temp"
+    },
+    "bed_texture": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "bed_texture_area": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "bed_type": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "before_layer_change_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "belt_frame_tilt_angle": {
+      "classification": "native_exportable",
+      "native_default": "45"
+    },
+    "belt_frame_tilt_decouple": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "belt_printer": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "belt_printer_infinite_y": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "belt_purge_tower_object": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "belt_purge_tower_width": {
+      "classification": "native_exportable",
+      "native_default": "35"
+    },
+    "belt_slice_rotation": {
+      "classification": "native_exportable",
+      "native_default": "x"
+    },
+    "belt_slice_rotation_angle": {
+      "classification": "native_exportable",
+      "native_default": "45"
+    },
+    "belt_support_floor_offset": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "best_object_pos": {
+      "classification": "native_exportable",
+      "native_default": "0.5,0.5"
+    },
+    "bottom_color_penetration_layers": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "bottom_layer_direction": {
+      "classification": "native_exportable",
+      "native_default": "-1"
+    },
+    "bottom_shell_layers": {
+      "classification": "native_exportable",
+      "native_default": "3"
+    },
+    "bottom_shell_thickness": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "bottom_solid_infill_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "bottom_surface_density": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "bottom_surface_filament_id": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "bottom_surface_fill_order": {
+      "classification": "native_exportable",
+      "native_default": "default"
+    },
+    "bottom_surface_pattern": {
+      "classification": "native_exportable",
+      "native_default": "monotonic"
+    },
+    "box_id": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "box_temperature": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "box_temperature_range_high": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "box_temperature_range_low": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "bridge_acceleration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "50%"
+      ]
+    },
+    "bridge_angle": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "bridge_density": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "bridge_flow": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "bridge_infill_acceleration": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "bridge_line_width": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "bridge_no_support": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "bridge_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "25"
+      ]
+    },
+    "brim_ears_detection_length": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "brim_ears_max_angle": {
+      "classification": "native_exportable",
+      "native_default": "125"
+    },
+    "brim_ears_outer_only": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "brim_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "brim_object_gap": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "brim_type": {
+      "classification": "native_exportable",
+      "native_default": "auto_brim"
+    },
+    "brim_use_efc_outline": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "brim_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "build_plate_tilt_x": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "build_plate_tilt_y": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "calib_flowrate_topinfill_special_order": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "center_of_surface_pattern": {
+      "classification": "native_exportable",
+      "native_default": "each_surface"
+    },
+    "chamber_minimal_temperature": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "chamber_temperature": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "chamber_temperatures": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "change_extrusion_role_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "change_filament_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "circle_compensation_manual_offset": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "circle_compensation_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "close_additional_fan_first_x_layers": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "close_fan_the_first_x_layers": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "color_bed_exclude_area": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "combine_brims": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "compatible_printers": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "compatible_printers_condition": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "compatible_prints": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "compatible_prints_condition": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "complete_print_exhaust_fan_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "80"
+      ]
+    },
+    "cool_cds_fan_start_at_height": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "cool_plate_temp": {
+      "classification": "native_exportable",
+      "native_default": [
+        "35"
+      ]
+    },
+    "cool_plate_temp_initial_layer": {
+      "classification": "native_exportable",
+      "native_default": [
+        "35"
+      ]
+    },
+    "cool_special_cds_fan_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "cooling_filter_enabled": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "cooling_perimeter_transition_distance": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "cooling_slowdown_logic": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "cooling_tube_length": {
+      "classification": "native_exportable",
+      "native_default": "5"
+    },
+    "cooling_tube_retraction": {
+      "classification": "native_exportable",
+      "native_default": "91.5"
+    },
+    "counter_coef_1": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "counter_coef_2": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "counter_coef_3": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "counter_limit_max": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "counter_limit_min": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "counterbore_hole_bridging": {
+      "classification": "native_exportable",
+      "native_default": "none"
+    },
+    "creality_flush_time": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "curr_bed_type": {
+      "classification": "native_exportable",
+      "native_default": "Cool Plate"
+    },
+    "customized_plate_temp": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "customized_plate_temp_initial_layer": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "default_acceleration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "500"
+      ]
+    },
+    "default_ams_type": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "default_bed_type": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "default_filament_colour": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "default_filament_profile": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "default_jerk": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "default_junction_deviation": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "default_materials": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "default_nozzle_volume_type": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "default_print_profile": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "default_wipe_tower_pos": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "deretract_speed_extruder_change": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "deretraction_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "description": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "detect_floating_vertical_shell": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "detect_narrow_internal_solid_infill": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "detect_overhang_wall": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "detect_thin_wall": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "diameter_limit": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "different_settings_to_system": {
+      "classification": "native_exportable",
+      "native_default": [
+        "",
+        ""
+      ]
+    },
+    "disable_fan_first_layers": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "disable_m73": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "dont_filter_internal_bridges": {
+      "classification": "native_exportable",
+      "native_default": "disabled"
+    },
+    "dont_slow_down_outer_wall": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "draft_shield": {
+      "classification": "native_exportable",
+      "native_default": "disabled"
+    },
+    "during_print_exhaust_fan_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "60"
+      ]
+    },
+    "elefant_foot_compensation": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "elefant_foot_compensation_layers": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "elefant_foot_layers_density": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "embedding_wall_into_infill": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "emit_machine_limits_to_gcode": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "enable_arc_fitting": {
+      "classification": "native_exportable",
+      "native_default": "disabled"
+    },
+    "enable_belt_purge_tower": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "enable_circle_compensation": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "enable_extra_bridge_layer": {
+      "classification": "native_exportable",
+      "native_default": "disabled"
+    },
+    "enable_filament_dynamic_map": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "enable_filament_mapping": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "enable_filament_ramming": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "enable_height_slowdown": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "enable_long_retraction_when_cut": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "enable_mixed_color_sublayer": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "enable_overhang_bridge_fan": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "enable_overhang_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "enable_power_loss_recovery": {
+      "classification": "native_exportable",
+      "native_default": "printer_configuration"
+    },
+    "enable_pre_heating": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "enable_pressure_advance": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "enable_prime_tower": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "enable_special_area_additional_cooling_fan": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "enable_support": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "enable_support_ironing": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "enable_tower_interface_cooldown_during_tower": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "enable_tower_interface_features": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "enable_volume_fan": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "enable_wrapping_detection": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "end_gcode": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "enforce_support_layers": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "eng_plate_temp": {
+      "classification": "native_exportable",
+      "native_default": [
+        "45"
+      ]
+    },
+    "eng_plate_temp_initial_layer": {
+      "classification": "native_exportable",
+      "native_default": [
+        "45"
+      ]
+    },
+    "ensure_vertical_shell_thickness": {
+      "classification": "native_exportable",
+      "native_default": "ensure_all"
+    },
+    "epoxy_resin_plate_temp": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "epoxy_resin_plate_temp_initial_layer": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "exclude_object": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "exclude_object_tolerance": {
+      "classification": "native_exportable",
+      "native_default": "0.1"
+    },
+    "external_perimeter_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "extra_brim_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "extra_loading_move": {
+      "classification": "native_exportable",
+      "native_default": "-2"
+    },
+    "extra_perimeters_on_overhangs": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "extra_solid_infills": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "extruder_ams_count": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "extruder_bed_exclude_volumes": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "extruder_clearance_dist_to_rod": {
+      "classification": "native_exportable",
+      "native_default": "40"
+    },
+    "extruder_clearance_height_to_lid": {
+      "classification": "native_exportable",
+      "native_default": "120"
+    },
+    "extruder_clearance_height_to_rod": {
+      "classification": "native_exportable",
+      "native_default": "40"
+    },
+    "extruder_clearance_max_radius": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "extruder_clearance_radius": {
+      "classification": "native_exportable",
+      "native_default": "40"
+    },
+    "extruder_colour": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "extruder_height_gap": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "extruder_max_nozzle_count": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "extruder_nozzle_stats": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "extruder_offset": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0x0"
+      ]
+    },
+    "extruder_printable_area": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "extruder_printable_height": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "extruder_type": {
+      "classification": "native_exportable",
+      "native_default": [
+        "Direct Drive"
+      ]
+    },
+    "extruder_variant_list": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "extruders_count": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "extrusion_rate_smoothing_external_perimeter_only": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "family": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_cooling_layer_time": {
+      "classification": "native_exportable",
+      "native_default": [
+        "60"
+      ]
+    },
+    "fan_cooling_layer_time_BRASS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_cooling_layer_time_HS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_direction": {
+      "classification": "native_exportable",
+      "native_default": "undefine"
+    },
+    "fan_kickstart": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "fan_max_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100"
+      ]
+    },
+    "fan_max_speed_BRASS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_max_speed_HS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_min_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "20"
+      ]
+    },
+    "fan_min_speed_BRASS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_min_speed_HS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_p2_after_x_layers": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_p2_before_x_layers": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_p2_speed_before_x_layers": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_speed_after_x_layers": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "fan_speedup_overhangs": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "fan_speedup_time": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "farthest_point_timelapse": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "filament_adaptive_volumetric_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_adhesiveness_category": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_bridge_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_change_extrusion_role_gcode": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "filament_change_length": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10"
+      ]
+    },
+    "filament_change_length_nc": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10"
+      ]
+    },
+    "filament_change_lift_type": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_color": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_colour": {
+      "classification": "native_exportable",
+      "native_default": [
+        "#F2754E"
+      ]
+    },
+    "filament_contact_safe": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_cooling_before_tower": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10"
+      ]
+    },
+    "filament_cooling_final_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "3.4"
+      ]
+    },
+    "filament_cooling_initial_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "2.2"
+      ]
+    },
+    "filament_cooling_moves": {
+      "classification": "native_exportable",
+      "native_default": [
+        "4"
+      ]
+    },
+    "filament_cost": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_density": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_deretraction_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_dev_ams_drying_ams_limitations": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "filament_dev_ams_drying_heat_distortion_temperature": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_dev_ams_drying_temperature": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_dev_ams_drying_time": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_dev_chamber_drying_bed_temperature": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_dev_chamber_drying_time": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_dev_drying_cooling_temperature": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_dev_drying_softening_temperature": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_diameter": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1.75"
+      ]
+    },
+    "filament_emission_safe": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_enable_overhang_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_end_gcode": {
+      "classification": "native_exportable",
+      "native_default": [
+        " "
+      ]
+    },
+    "filament_extruder_compatibility": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_extruder_id": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_extruder_variant": {
+      "classification": "native_exportable",
+      "native_default": [
+        "Direct Drive Standard"
+      ]
+    },
+    "filament_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "filament_flow_ratio_initial_layer": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_flush_temp": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_flush_temp_fast": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_flush_volumetric_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_id": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "filament_ids": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "filament_ingredients_safe": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_ironing_flow": {
+      "classification": "native_exportable",
+      "native_default": [
+        "nil"
+      ]
+    },
+    "filament_ironing_inset": {
+      "classification": "native_exportable",
+      "native_default": [
+        "nil"
+      ]
+    },
+    "filament_ironing_spacing": {
+      "classification": "native_exportable",
+      "native_default": [
+        "nil"
+      ]
+    },
+    "filament_ironing_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "nil"
+      ]
+    },
+    "filament_is_mixed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_is_support": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_loading_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "28"
+      ]
+    },
+    "filament_loading_speed_start": {
+      "classification": "native_exportable",
+      "native_default": [
+        "3"
+      ]
+    },
+    "filament_long_retractions_when_cut": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_long_retractions_when_ec": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_map": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "filament_map_2": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "filament_map_mode": {
+      "classification": "native_exportable",
+      "native_default": "Auto For Flush"
+    },
+    "filament_max_volumetric_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "2"
+      ]
+    },
+    "filament_metal_stickiness": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_minimal_purge_on_wipe_tower": {
+      "classification": "native_exportable",
+      "native_default": [
+        "15"
+      ]
+    },
+    "filament_mixed_components": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "filament_mixed_gradient": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_mixed_gradient_curve": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "filament_mixed_gradient_per_part": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_mixed_gradient_range": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "filament_mixed_sublayer_ratios": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "filament_multitool_ramming": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_multitool_ramming_flow": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10"
+      ]
+    },
+    "filament_multitool_ramming_volume": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10"
+      ]
+    },
+    "filament_notes": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "filament_nozzle_map": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "filament_overhang_1_4_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_overhang_2_4_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_overhang_3_4_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_overhang_4_4_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_overhang_totally_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_pre_cooling_temperature": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_pre_cooling_temperature_nc": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_preheat_temperature_delta": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_prime_volume": {
+      "classification": "native_exportable",
+      "native_default": [
+        "45"
+      ]
+    },
+    "filament_prime_volume_nc": {
+      "classification": "native_exportable",
+      "native_default": [
+        "60"
+      ]
+    },
+    "filament_printable": {
+      "classification": "native_exportable",
+      "native_default": [
+        "3"
+      ]
+    },
+    "filament_ramming_parameters": {
+      "classification": "native_exportable",
+      "native_default": [
+        "120 100 6.6 6.8 7.2 7.6 7.9 8.2 8.7 9.4 9.9 10.0| 0.05 6.6 0.45 6.8 0.95 7.8 1.45 8.3 1.95 9.7 2.45 10 2.95 7.6 3.45 7.6 3.95 7.6 4.45 7.6 4.95 7.6"
+      ]
+    },
+    "filament_ramming_travel_time": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_ramming_travel_time_nc": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_ramming_volumetric_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "-1"
+      ]
+    },
+    "filament_ramming_volumetric_speed_nc": {
+      "classification": "native_exportable",
+      "native_default": [
+        "-1"
+      ]
+    },
+    "filament_retract_before_wipe": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retract_layer_change": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retract_length": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retract_length_nc": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10"
+      ]
+    },
+    "filament_retract_length_toolchange": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retract_lift_above": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retract_lift_below": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retract_lift_enforce": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retract_restart_extra": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retract_restart_extra_toolchange": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retract_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retract_when_changing_layer": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retraction_distances_when_cut": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retraction_distances_when_ec": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retraction_length": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retraction_minimum_travel": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_retraction_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_scarf_gap": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_scarf_height": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_scarf_length": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_scarf_seam_type": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_self_index": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "filament_settings_id": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "filament_shrink": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100%"
+      ]
+    },
+    "filament_shrinkage_compensation_z": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100%"
+      ]
+    },
+    "filament_soluble": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_spool_weight": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_stamping_distance": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_stamping_loading_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_start_gcode": {
+      "classification": "native_exportable",
+      "native_default": [
+        " "
+      ]
+    },
+    "filament_support_printable": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_swap_gcode": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_toolchange_delay": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_toolchange_time": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_tower_interface_pre_extrusion_dist": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10"
+      ]
+    },
+    "filament_tower_interface_pre_extrusion_length": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_tower_interface_print_temp": {
+      "classification": "native_exportable",
+      "native_default": [
+        "-1"
+      ]
+    },
+    "filament_tower_interface_purge_volume": {
+      "classification": "native_exportable",
+      "native_default": [
+        "20"
+      ]
+    },
+    "filament_tower_ironing_area": {
+      "classification": "native_exportable",
+      "native_default": [
+        "4"
+      ]
+    },
+    "filament_type": {
+      "classification": "native_exportable",
+      "native_default": [
+        "PLA"
+      ]
+    },
+    "filament_unloading_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "90"
+      ]
+    },
+    "filament_unloading_speed_start": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100"
+      ]
+    },
+    "filament_velocity_adaptation_factor": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_vendor": {
+      "classification": "native_exportable",
+      "native_default": [
+        "(Undefined)"
+      ]
+    },
+    "filament_volume_map": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "filament_wipe": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_wipe_distance": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_z_hop": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "filament_z_hop_types": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "file_start_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "filename_format": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "fill_multiline": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "filter_out_gap_fill": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "fins_extrude_safe_temp": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "first_layer_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "first_layer_jerk": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "first_layer_print_sequence": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "first_layer_temperature": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "first_x_layer_fan_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "flush_into_infill": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "flush_into_objects": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "flush_into_support": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "flush_multiplier": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0.3"
+      ]
+    },
+    "flush_multiplier_fast": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1.2"
+      ]
+    },
+    "flush_volumes_matrix": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0",
+        "280",
+        "280",
+        "280",
+        "280",
+        "0",
+        "280",
+        "280",
+        "280",
+        "280",
+        "0",
+        "280",
+        "280",
+        "280",
+        "280",
+        "0"
+      ]
+    },
+    "flush_volumes_vector": {
+      "classification": "native_exportable",
+      "native_default": [
+        "140",
+        "140",
+        "140",
+        "140",
+        "140",
+        "140",
+        "140",
+        "140"
+      ]
+    },
+    "from": {
+      "classification": "metadata_not_toolpath",
+      "native_default": "project"
+    },
+    "full_fan_speed_layer": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "fuzzy_skin": {
+      "classification": "native_exportable",
+      "native_default": "disabled_fuzzy"
+    },
+    "fuzzy_skin_first_layer": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "fuzzy_skin_layers_between_ripple_offset": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "fuzzy_skin_mode": {
+      "classification": "native_exportable",
+      "native_default": "displacement"
+    },
+    "fuzzy_skin_noise_type": {
+      "classification": "native_exportable",
+      "native_default": "classic"
+    },
+    "fuzzy_skin_octaves": {
+      "classification": "native_exportable",
+      "native_default": "4"
+    },
+    "fuzzy_skin_persistence": {
+      "classification": "native_exportable",
+      "native_default": "0.5"
+    },
+    "fuzzy_skin_point_distance": {
+      "classification": "native_exportable",
+      "native_default": "0.3"
+    },
+    "fuzzy_skin_ripple_offset": {
+      "classification": "native_exportable",
+      "native_default": "50%"
+    },
+    "fuzzy_skin_ripples_per_layer": {
+      "classification": "native_exportable",
+      "native_default": "15"
+    },
+    "fuzzy_skin_scale": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "fuzzy_skin_thickness": {
+      "classification": "native_exportable",
+      "native_default": "0.2"
+    },
+    "gap_fill_enabled": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "gap_fill_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "gap_fill_target": {
+      "classification": "native_exportable",
+      "native_default": "nowhere"
+    },
+    "gap_infill_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "30"
+      ]
+    },
+    "gcode_add_line_number": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "gcode_comments": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "gcode_flavor": {
+      "classification": "native_exportable",
+      "native_default": "marlin"
+    },
+    "gcode_label_objects": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "gcode_remap_x": {
+      "classification": "native_exportable",
+      "native_default": "pos_x"
+    },
+    "gcode_remap_y": {
+      "classification": "native_exportable",
+      "native_default": "pos_y"
+    },
+    "gcode_remap_z": {
+      "classification": "native_exportable",
+      "native_default": "pos_z"
+    },
+    "gcode_skip_config_block": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "grab_length": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "group_algo_with_time": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "gyroid_optimized": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "has_filament_switcher": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "has_scarf_joint_seam": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "head_wrap_detect_zone": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "high_current_on_filament_swap": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "high_precision_gcode": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "hole_coef_1": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "hole_coef_2": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "hole_coef_3": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "hole_limit_max": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "hole_limit_min": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "hole_to_polyhole": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "hole_to_polyhole_max_edges": {
+      "classification": "native_exportable",
+      "native_default": "50"
+    },
+    "hole_to_polyhole_threshold": {
+      "classification": "native_exportable",
+      "native_default": "0.01"
+    },
+    "hole_to_polyhole_twisted": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "host_type": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "hot_plate_temp": {
+      "classification": "native_exportable",
+      "native_default": [
+        "45"
+      ]
+    },
+    "hot_plate_temp_initial_layer": {
+      "classification": "native_exportable",
+      "native_default": [
+        "45"
+      ]
+    },
+    "hotend_cooling_rate": {
+      "classification": "native_exportable",
+      "native_default": [
+        "2"
+      ]
+    },
+    "hotend_heating_rate": {
+      "classification": "native_exportable",
+      "native_default": [
+        "2"
+      ]
+    },
+    "idle_temperature": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "idle_temperture": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "imex_carriage_margin": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "imex_firmware_managed_zones": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "imex_gantry_count": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "imex_head_filament_map": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "imex_mode_active_tools": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "imex_mode_gcodes": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "imex_mode_names": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "imex_nozzle_clearance_x": {
+      "classification": "native_exportable",
+      "native_default": "30"
+    },
+    "imex_nozzle_clearance_y": {
+      "classification": "native_exportable",
+      "native_default": "30"
+    },
+    "imex_parallel_mode": {
+      "classification": "native_exportable",
+      "native_default": "primary"
+    },
+    "imex_tool_layout": {
+      "classification": "native_exportable",
+      "native_default": "front-left"
+    },
+    "imex_tools_per_gantry": {
+      "classification": "native_exportable",
+      "native_default": "2"
+    },
+    "imex_viz_theme": {
+      "classification": "native_exportable",
+      "native_default": "standard"
+    },
+    "impact_strength_z": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "include": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "independent_support_layer_height": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "ineternal_bridge_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "infill_anchor": {
+      "classification": "native_exportable",
+      "native_default": "400%"
+    },
+    "infill_anchor_max": {
+      "classification": "native_exportable",
+      "native_default": "20"
+    },
+    "infill_combination": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "infill_combination_max_layer_height": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "infill_complete_top": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "infill_direction": {
+      "classification": "native_exportable",
+      "native_default": "45"
+    },
+    "infill_instead_top_bottom_surfaces": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "infill_jerk": {
+      "classification": "native_exportable",
+      "native_default": [
+        "9"
+      ]
+    },
+    "infill_layer_acceleration": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "infill_lock_depth": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "infill_overhang_angle": {
+      "classification": "native_exportable",
+      "native_default": "60"
+    },
+    "infill_rotate_step": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "infill_shift_step": {
+      "classification": "native_exportable",
+      "native_default": "0.4"
+    },
+    "infill_wall_overlap": {
+      "classification": "native_exportable",
+      "native_default": "15%"
+    },
+    "inherits": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "inherits_group": {
+      "classification": "native_exportable",
+      "native_default": [
+        "",
+        ""
+      ]
+    },
+    "inital_layer_height": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "inital_travel_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "initial_layer_acceleration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "300"
+      ]
+    },
+    "initial_layer_fan_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "-1"
+      ]
+    },
+    "initial_layer_infill_line_width": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "initial_layer_infill_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "60"
+      ]
+    },
+    "initial_layer_jerk": {
+      "classification": "native_exportable",
+      "native_default": [
+        "9"
+      ]
+    },
+    "initial_layer_line_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "initial_layer_min_bead_width": {
+      "classification": "native_exportable",
+      "native_default": "85%"
+    },
+    "initial_layer_print_height": {
+      "classification": "native_exportable",
+      "native_default": "0.2"
+    },
+    "initial_layer_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "30"
+      ]
+    },
+    "initial_layer_travel_acceleration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100%"
+      ]
+    },
+    "initial_layer_travel_jerk": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100%"
+      ]
+    },
+    "initial_layer_travel_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100%"
+      ]
+    },
+    "initial_travel_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "inner_wall_acceleration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10000"
+      ]
+    },
+    "inner_wall_filament_id": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "inner_wall_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "inner_wall_jerk": {
+      "classification": "native_exportable",
+      "native_default": [
+        "9"
+      ]
+    },
+    "inner_wall_line_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "inner_wall_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "60"
+      ]
+    },
+    "input_shaping_damp_x": {
+      "classification": "native_exportable",
+      "native_default": "0.1"
+    },
+    "input_shaping_damp_y": {
+      "classification": "native_exportable",
+      "native_default": "0.1"
+    },
+    "input_shaping_emit": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "input_shaping_freq_x": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "input_shaping_freq_y": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "input_shaping_type": {
+      "classification": "native_exportable",
+      "native_default": "Default"
+    },
+    "instantiation": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "interface_shells": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "interlocking_beam": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "interlocking_beam_layer_count": {
+      "classification": "native_exportable",
+      "native_default": "2"
+    },
+    "interlocking_beam_width": {
+      "classification": "native_exportable",
+      "native_default": "0.8"
+    },
+    "interlocking_boundary_avoidance": {
+      "classification": "native_exportable",
+      "native_default": "2"
+    },
+    "interlocking_depth": {
+      "classification": "native_exportable",
+      "native_default": "2"
+    },
+    "interlocking_orientation": {
+      "classification": "native_exportable",
+      "native_default": "22.5"
+    },
+    "internal_bridge_angle": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "internal_bridge_density": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "internal_bridge_fan_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "-1"
+      ]
+    },
+    "internal_bridge_flow": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "internal_bridge_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "150%"
+      ]
+    },
+    "internal_solid_filament_id": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "internal_solid_infill_acceleration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100%"
+      ]
+    },
+    "internal_solid_infill_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "internal_solid_infill_line_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "internal_solid_infill_pattern": {
+      "classification": "native_exportable",
+      "native_default": "monotonic"
+    },
+    "internal_solid_infill_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100"
+      ]
+    },
+    "ironing_angle": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "ironing_angle_fixed": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "ironing_fan_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "-1"
+      ]
+    },
+    "ironing_flow": {
+      "classification": "native_exportable",
+      "native_default": "10%"
+    },
+    "ironing_inset": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "ironing_pattern": {
+      "classification": "native_exportable",
+      "native_default": "rectilinear"
+    },
+    "ironing_spacing": {
+      "classification": "native_exportable",
+      "native_default": "0.1"
+    },
+    "ironing_speed": {
+      "classification": "native_exportable",
+      "native_default": "20"
+    },
+    "ironing_support_layer": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "ironing_type": {
+      "classification": "native_exportable",
+      "native_default": "no ironing"
+    },
+    "is_artillery": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "is_imex": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "is_infill_first": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "is_support_3mf": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "is_support_air_condition": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "is_support_bed_leveling_force": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "is_support_mqtt": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "is_support_multi_box": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "is_support_polar_cooler": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "is_support_timelapse": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "keep_fan_always_on": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "lateral_lattice_angle_1": {
+      "classification": "native_exportable",
+      "native_default": "-45"
+    },
+    "lateral_lattice_angle_2": {
+      "classification": "native_exportable",
+      "native_default": "45"
+    },
+    "lattice_angle_1": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "lattice_angle_2": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "layer_change_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "layer_height": {
+      "classification": "native_exportable",
+      "native_default": "0.2"
+    },
+    "layer_heigth": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "layer_time_smoothing": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "layer_time_smoothing_threshold": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "leading_brim_length": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "lightning_overhang_angle": {
+      "classification": "native_exportable",
+      "native_default": "45"
+    },
+    "lightning_prune_angle": {
+      "classification": "native_exportable",
+      "native_default": "45"
+    },
+    "lightning_straightening_angle": {
+      "classification": "native_exportable",
+      "native_default": "45"
+    },
+    "line_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "locked_skeleton_infill_pattern": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "locked_skin_infill_pattern": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "long_retractions_when_cut": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "long_retractions_when_ec": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "machine_LED_light_exist": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "machine_bed_mass_Y": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "machine_end_gcode": {
+      "classification": "native_exportable",
+      "native_default": "M104 S0 ; turn off temperature\nG28 X0  ; home X axis\nM84     ; disable motors\n"
+    },
+    "machine_hotend_change_time": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "machine_load_filament_time": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "machine_max_acceleration_e": {
+      "classification": "native_exportable",
+      "native_default": [
+        "5000",
+        "5000"
+      ]
+    },
+    "machine_max_acceleration_extruding": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1500",
+        "1250"
+      ]
+    },
+    "machine_max_acceleration_retracting": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1500",
+        "1250"
+      ]
+    },
+    "machine_max_acceleration_travel": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0",
+        "0"
+      ]
+    },
+    "machine_max_acceleration_x": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1000",
+        "1000"
+      ]
+    },
+    "machine_max_acceleration_y": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1000",
+        "1000"
+      ]
+    },
+    "machine_max_acceleration_z": {
+      "classification": "native_exportable",
+      "native_default": [
+        "500",
+        "200"
+      ]
+    },
+    "machine_max_feedrate_e": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "machine_max_feedrate_x": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "machine_max_feedrate_y": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "machine_max_feedrate_z": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "machine_max_force_Y": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "machine_max_jerk_e": {
+      "classification": "native_exportable",
+      "native_default": [
+        "2.5",
+        "2.5"
+      ]
+    },
+    "machine_max_jerk_x": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10",
+        "10"
+      ]
+    },
+    "machine_max_jerk_y": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10",
+        "10"
+      ]
+    },
+    "machine_max_jerk_z": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0.2",
+        "0.4"
+      ]
+    },
+    "machine_max_junction_deviation": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0.01"
+      ]
+    },
+    "machine_max_printed_mass": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "machine_max_speed_e": {
+      "classification": "native_exportable",
+      "native_default": [
+        "120",
+        "120"
+      ]
+    },
+    "machine_max_speed_x": {
+      "classification": "native_exportable",
+      "native_default": [
+        "500",
+        "200"
+      ]
+    },
+    "machine_max_speed_y": {
+      "classification": "native_exportable",
+      "native_default": [
+        "500",
+        "200"
+      ]
+    },
+    "machine_max_speed_z": {
+      "classification": "native_exportable",
+      "native_default": [
+        "12",
+        "12"
+      ]
+    },
+    "machine_min_extruding_rate": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0",
+        "0"
+      ]
+    },
+    "machine_min_travel_rate": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0",
+        "0"
+      ]
+    },
+    "machine_pause_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "machine_platform_motion_enable": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "machine_prepare_compensation_time": {
+      "classification": "native_exportable",
+      "native_default": "260"
+    },
+    "machine_ptc_exist": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "machine_start_gcode": {
+      "classification": "native_exportable",
+      "native_default": "G28 ; home all axes\nG1 Z5 F5000 ; lift nozzle\n"
+    },
+    "machine_switch_extruder_time": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "machine_tech": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "machine_tool_change_time": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "machine_unload_filament_time": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "make_overhang_printable": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "make_overhang_printable_angle": {
+      "classification": "native_exportable",
+      "native_default": "55"
+    },
+    "make_overhang_printable_hole_size": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "manual_filament_change": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "master_extruder_id": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "material_flow_dependent_temperature": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "material_flow_temp_graph": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "max_bridge_length": {
+      "classification": "native_exportable",
+      "native_default": "10"
+    },
+    "max_layer_height": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "max_resonance_avoidance_speed": {
+      "classification": "native_exportable",
+      "native_default": "120"
+    },
+    "max_travel_detour_distance": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "max_volumetric_extrusion_rate_slope": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "max_volumetric_extrusion_rate_slope_segment_length": {
+      "classification": "native_exportable",
+      "native_default": "3"
+    },
+    "min_bead_width": {
+      "classification": "native_exportable",
+      "native_default": "85%"
+    },
+    "min_feature_size": {
+      "classification": "native_exportable",
+      "native_default": "25%"
+    },
+    "min_layer_height": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0.07"
+      ]
+    },
+    "min_length_factor": {
+      "classification": "native_exportable",
+      "native_default": "0.5"
+    },
+    "min_resonance_avoidance_speed": {
+      "classification": "native_exportable",
+      "native_default": "70"
+    },
+    "min_skirt_length": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "min_width_top_surface": {
+      "classification": "native_exportable",
+      "native_default": "300%"
+    },
+    "minimum_sparse_infill_area": {
+      "classification": "native_exportable",
+      "native_default": "15"
+    },
+    "minimum_support_area": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "mmu_segmented_region_interlocking_depth": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "mmu_segmented_region_max_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "model": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "model_id": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "monotonic_travel_into_wall": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "multicolor_method": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "name": {
+      "classification": "metadata_not_toolpath",
+      "native_default": "project_settings"
+    },
+    "no_slow_down_for_cooling_on_outwalls": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "notes": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "nozzle_count": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "nozzle_diameter": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0.4"
+      ]
+    },
+    "nozzle_flush_dataset": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "nozzle_height": {
+      "classification": "native_exportable",
+      "native_default": "2.5"
+    },
+    "nozzle_hrc": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "nozzle_temperature": {
+      "classification": "native_exportable",
+      "native_default": [
+        "200"
+      ]
+    },
+    "nozzle_temperature_BRASS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "nozzle_temperature_HS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "nozzle_temperature_initial_layer": {
+      "classification": "native_exportable",
+      "native_default": [
+        "200"
+      ]
+    },
+    "nozzle_temperature_initial_layer_BRASS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "nozzle_temperature_initial_layer_HS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "nozzle_temperature_range_high": {
+      "classification": "native_exportable",
+      "native_default": [
+        "240"
+      ]
+    },
+    "nozzle_temperature_range_low": {
+      "classification": "native_exportable",
+      "native_default": [
+        "190"
+      ]
+    },
+    "nozzle_type": {
+      "classification": "native_exportable",
+      "native_default": [
+        "undefine"
+      ]
+    },
+    "nozzle_volume": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "nozzle_volume_type": {
+      "classification": "native_exportable",
+      "native_default": [
+        "Standard"
+      ]
+    },
+    "only_one_wall_first_layer": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "only_one_wall_top": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "ooze_prevention": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "other_layers_print_sequence": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "other_layers_print_sequence_nums": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "outer_wall_acceleration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "500"
+      ]
+    },
+    "outer_wall_filament_id": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "outer_wall_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "outer_wall_jerk": {
+      "classification": "native_exportable",
+      "native_default": [
+        "9"
+      ]
+    },
+    "outer_wall_line_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "outer_wall_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "60"
+      ]
+    },
+    "output_filename_format": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "overhang_1_4_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "overhang_2_4_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "overhang_3_4_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "overhang_4_4_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "overhang_fan_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100"
+      ]
+    },
+    "overhang_fan_threshold": {
+      "classification": "native_exportable",
+      "native_default": [
+        "95%"
+      ]
+    },
+    "overhang_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "overhang_reverse": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "overhang_reverse_internal_only": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "overhang_reverse_threshold": {
+      "classification": "native_exportable",
+      "native_default": "50%"
+    },
+    "overhang_threshold_participating_cooling": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "override_filament_scarf_seam_setting": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "override_process_overhang_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "parallel_printheads_bed_exclude_areas": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "parallel_printheads_count": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "parking_pos_retraction": {
+      "classification": "native_exportable",
+      "native_default": "92"
+    },
+    "part_cooling_fan_min_pwm": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "pause_gcode": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "pellet_flow_coefficient": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "pellet_modded_printer": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "physical_extruder_map": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "post_process": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "pre_start_fan_time": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "precise_outer_wall": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "precise_z_height": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "preferred_orientation": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "preheat_steps": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "preheat_time": {
+      "classification": "native_exportable",
+      "native_default": "30"
+    },
+    "pressure_advance": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0.02"
+      ]
+    },
+    "prime_tower_brim_width": {
+      "classification": "native_exportable",
+      "native_default": "3"
+    },
+    "prime_tower_enable_framework": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "prime_tower_enhance_type": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "prime_tower_extra_rib_length": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "prime_tower_fillet_wall": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "prime_tower_flat_ironing": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "prime_tower_infill_gap": {
+      "classification": "native_exportable",
+      "native_default": "150%"
+    },
+    "prime_tower_lift_height": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "prime_tower_lift_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "prime_tower_max_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "prime_tower_position_type": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "prime_tower_rib_wall": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "prime_tower_rib_width": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "prime_tower_skip_points": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "prime_tower_width": {
+      "classification": "native_exportable",
+      "native_default": "60"
+    },
+    "prime_volume": {
+      "classification": "native_exportable",
+      "native_default": "45"
+    },
+    "prime_volume_mode": {
+      "classification": "native_exportable",
+      "native_default": "Default"
+    },
+    "print_compatible_printers": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "print_extruder_id": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "print_extruder_variant": {
+      "classification": "native_exportable",
+      "native_default": [
+        "Direct Drive Standard"
+      ]
+    },
+    "print_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "print_host": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "print_host_webui": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "print_in_clockwise": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "print_order": {
+      "classification": "native_exportable",
+      "native_default": "default"
+    },
+    "print_plugin_config_overrides": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "print_sequence": {
+      "classification": "native_exportable",
+      "native_default": "by layer"
+    },
+    "print_settings_id": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "printable_area": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0x0",
+        "200x0",
+        "200x200",
+        "0x200"
+      ]
+    },
+    "printable_height": {
+      "classification": "native_exportable",
+      "native_default": "100"
+    },
+    "printer_agent": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "printer_extruder_id": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "printer_extruder_variant": {
+      "classification": "native_exportable",
+      "native_default": [
+        "Direct Drive Standard"
+      ]
+    },
+    "printer_flush_multiplier": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "printer_model": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "printer_model_path": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "printer_notes": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "printer_settings_id": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "printer_structure": {
+      "classification": "native_exportable",
+      "native_default": "undefine"
+    },
+    "printer_technology": {
+      "classification": "native_exportable",
+      "native_default": "FFF"
+    },
+    "printer_variant": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "printhost_apikey": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "printhost_authorization_type": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "printhost_cafile": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "printhost_password": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "printhost_port": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "printhost_ssl_ignore_revoke": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "printhost_user": {
+      "classification": "restricted",
+      "native_default": null
+    },
+    "printing_by_object_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "process_change_extrusion_role_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "purge_in_prime_tower": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "raft_contact_distance": {
+      "classification": "native_exportable",
+      "native_default": "0.1"
+    },
+    "raft_expansion": {
+      "classification": "native_exportable",
+      "native_default": "1.5"
+    },
+    "raft_first_layer_density": {
+      "classification": "native_exportable",
+      "native_default": "90%"
+    },
+    "raft_first_layer_expansion": {
+      "classification": "native_exportable",
+      "native_default": "2"
+    },
+    "raft_layers": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "reduce_crossing_wall": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "reduce_fan_stop_start_freq": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "reduce_infill_retraction": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "relative_bridge_angle": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "remaining_times": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "renamed_from": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "required_nozzle_HRC": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "resolution": {
+      "classification": "native_exportable",
+      "native_default": "0.01"
+    },
+    "resonance_avoidance": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "retract_after_wipe": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0%"
+      ]
+    },
+    "retract_before_wipe": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100%"
+      ]
+    },
+    "retract_length_toolchange": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10"
+      ]
+    },
+    "retract_lift_above": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "retract_lift_below": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "retract_lift_enforce": {
+      "classification": "native_exportable",
+      "native_default": [
+        "All Surfaces"
+      ]
+    },
+    "retract_on_top_layer": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "retract_restart_extra": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "retract_restart_extra_toolchange": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "retract_when_changing_layer": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "retraction_distances_when_cut": {
+      "classification": "native_exportable",
+      "native_default": [
+        "18"
+      ]
+    },
+    "retraction_distances_when_ec": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10"
+      ]
+    },
+    "retraction_length": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0.8"
+      ]
+    },
+    "retraction_minimum_travel": {
+      "classification": "native_exportable",
+      "native_default": [
+        "2"
+      ]
+    },
+    "retraction_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "30"
+      ]
+    },
+    "role_based_wipe_speed": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "rotate_solid_infill_direction": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "scan_first_layer": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "scarf_angle_threshold": {
+      "classification": "native_exportable",
+      "native_default": "155"
+    },
+    "scarf_joint_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "scarf_joint_speed": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "scarf_overhang_threshold": {
+      "classification": "native_exportable",
+      "native_default": "40%"
+    },
+    "seam_gap": {
+      "classification": "native_exportable",
+      "native_default": "10%"
+    },
+    "seam_placement_away_from_overhangs": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "seam_position": {
+      "classification": "native_exportable",
+      "native_default": "aligned"
+    },
+    "seam_slope_conditional": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "seam_slope_entire_loop": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "seam_slope_gap": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "seam_slope_inner_walls": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "seam_slope_min_length": {
+      "classification": "native_exportable",
+      "native_default": "20"
+    },
+    "seam_slope_start_height": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "seam_slope_steps": {
+      "classification": "native_exportable",
+      "native_default": "10"
+    },
+    "seam_slope_type": {
+      "classification": "native_exportable",
+      "native_default": "none"
+    },
+    "separated_infills": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "set_other_flow_ratios": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "setting_id": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "shape": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "shrink_ratio": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "single_extruder_multi_material": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "single_extruder_multi_material_priming": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "single_loop_draft_shield": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "skeleton_infill_density": {
+      "classification": "native_exportable",
+      "native_default": "25%"
+    },
+    "skeleton_infill_line_width": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "skin_infill_density": {
+      "classification": "native_exportable",
+      "native_default": "25%"
+    },
+    "skin_infill_depth": {
+      "classification": "native_exportable",
+      "native_default": "2"
+    },
+    "skin_infill_line_width": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "skirt_distance": {
+      "classification": "native_exportable",
+      "native_default": "2"
+    },
+    "skirt_height": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "skirt_loops": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "skirt_per_object": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "skirt_speed": {
+      "classification": "native_exportable",
+      "native_default": "50"
+    },
+    "skirt_start_angle": {
+      "classification": "native_exportable",
+      "native_default": "-135"
+    },
+    "skirt_type": {
+      "classification": "native_exportable",
+      "native_default": "combined"
+    },
+    "slice_closing_radius": {
+      "classification": "native_exportable",
+      "native_default": "0.049"
+    },
+    "slicing_mode": {
+      "classification": "native_exportable",
+      "native_default": "regular"
+    },
+    "slicing_pipeline_plugin": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "slow_down_curled_perimeters": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "slow_down_for_layer_cooling": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "slow_down_layer_time": {
+      "classification": "native_exportable",
+      "native_default": [
+        "5"
+      ]
+    },
+    "slow_down_layer_time_BRASS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "slow_down_layer_time_HS": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "slow_down_layers": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "slow_down_min_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10"
+      ]
+    },
+    "slow_layers_count": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "slowdown_end_acc": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "slowdown_end_height": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "slowdown_end_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "slowdown_for_curled_perimeters": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "slowdown_start_acc": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "slowdown_start_height": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "slowdown_start_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "small_area_infill_flow_compensation": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "small_area_infill_flow_compensation_model": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0,0",
+        "\n0.2,0.4444",
+        "\n0.4,0.6145",
+        "\n0.6,0.7059",
+        "\n0.8,0.7619",
+        "\n1.5,0.8571",
+        "\n2,0.8889",
+        "\n3,0.9231",
+        "\n5,0.9520",
+        "\n10,1"
+      ]
+    },
+    "small_perimeter_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "50%"
+      ]
+    },
+    "small_perimeter_threshold": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "small_support_perimeter_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "50%"
+      ]
+    },
+    "small_support_perimeter_threshold": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "smooth_speed_discontinuity_area": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "solid_infill_direction": {
+      "classification": "native_exportable",
+      "native_default": "45"
+    },
+    "solid_infill_filament": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "solid_infill_rotate_template": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "sparse_infill_acceleration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100%"
+      ]
+    },
+    "sparse_infill_anchor": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "sparse_infill_density": {
+      "classification": "native_exportable",
+      "native_default": "20%"
+    },
+    "sparse_infill_filament": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "sparse_infill_filament_id": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "sparse_infill_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "sparse_infill_lattice_angle_1": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "sparse_infill_lattice_angle_2": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "sparse_infill_line_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "sparse_infill_pattern": {
+      "classification": "native_exportable",
+      "native_default": "crosshatch"
+    },
+    "sparse_infill_rotate_template": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "sparse_infill_smooth_factor": {
+      "classification": "native_exportable",
+      "native_default": "0%"
+    },
+    "sparse_infill_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100"
+      ]
+    },
+    "speed_limit_to_height": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "speed_limit_to_height_enable": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "spiral_finishing_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "spiral_mode": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "spiral_mode_max_xy_smoothing": {
+      "classification": "native_exportable",
+      "native_default": "200%"
+    },
+    "spiral_mode_smooth": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "spiral_starting_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "staggered_inner_seams": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "standby_temperature_delta": {
+      "classification": "native_exportable",
+      "native_default": "-5"
+    },
+    "start_end_points": {
+      "classification": "native_exportable",
+      "native_default": [
+        "30x-3",
+        "54x245"
+      ]
+    },
+    "start_gcode": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "supertack_plate_temp": {
+      "classification": "native_exportable",
+      "native_default": [
+        "35"
+      ]
+    },
+    "supertack_plate_temp_initial_layer": {
+      "classification": "native_exportable",
+      "native_default": [
+        "35"
+      ]
+    },
+    "support_air_filtration": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "support_angle": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_base_pattern": {
+      "classification": "native_exportable",
+      "native_default": "default"
+    },
+    "support_base_pattern_spacing": {
+      "classification": "native_exportable",
+      "native_default": "2.5"
+    },
+    "support_bottom_interface_spacing": {
+      "classification": "native_exportable",
+      "native_default": "0.5"
+    },
+    "support_bottom_z_distance": {
+      "classification": "native_exportable",
+      "native_default": "0.2"
+    },
+    "support_box_temp_control": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "support_chamber_temp_control": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "support_cooling_filter": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_critical_regions_only": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_expansion": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_fast_purge_mode": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_filament": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "support_interface_bottom_layers": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_interface_bottom_spacing": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "support_interface_filament": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_interface_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "support_interface_loop_pattern": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_interface_not_for_body": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "support_interface_pattern": {
+      "classification": "native_exportable",
+      "native_default": "auto"
+    },
+    "support_interface_spacing": {
+      "classification": "native_exportable",
+      "native_default": "0.5"
+    },
+    "support_interface_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "80"
+      ]
+    },
+    "support_interface_top_layers": {
+      "classification": "native_exportable",
+      "native_default": "3"
+    },
+    "support_ironing": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_ironing_direction": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "support_ironing_flow": {
+      "classification": "native_exportable",
+      "native_default": "10%"
+    },
+    "support_ironing_inset": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "support_ironing_pattern": {
+      "classification": "native_exportable",
+      "native_default": "rectilinear"
+    },
+    "support_ironing_spacing": {
+      "classification": "native_exportable",
+      "native_default": "0.1"
+    },
+    "support_ironing_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "support_line_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_material_interface_fan_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "-1"
+      ]
+    },
+    "support_material_synchronize_layers": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "support_multi_bed_types": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_multi_filament": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "support_object_first_layer_gap": {
+      "classification": "native_exportable",
+      "native_default": "0.2"
+    },
+    "support_object_skip_flush": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_object_xy_distance": {
+      "classification": "native_exportable",
+      "native_default": "0.35"
+    },
+    "support_on_build_plate_only": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_parallel_printheads": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "support_remove_small_overhang": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "support_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "80"
+      ]
+    },
+    "support_style": {
+      "classification": "native_exportable",
+      "native_default": "default"
+    },
+    "support_threshold_angle": {
+      "classification": "native_exportable",
+      "native_default": "30"
+    },
+    "support_threshold_overlap": {
+      "classification": "native_exportable",
+      "native_default": "50%"
+    },
+    "support_top_z_distance": {
+      "classification": "native_exportable",
+      "native_default": "0.2"
+    },
+    "support_type": {
+      "classification": "native_exportable",
+      "native_default": "normal(auto)"
+    },
+    "support_wall_loops": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "support_wan_network": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "support_xy_overrides_z": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "symmetric_infill_y_axis": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "temp_max": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "temp_min": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "temperature_vitrification": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100"
+      ]
+    },
+    "temperture_vitrification": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "template_custom_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "textured_cool_plate_temp": {
+      "classification": "native_exportable",
+      "native_default": [
+        "40"
+      ]
+    },
+    "textured_cool_plate_temp_initial_layer": {
+      "classification": "native_exportable",
+      "native_default": [
+        "40"
+      ]
+    },
+    "textured_plate_temp": {
+      "classification": "native_exportable",
+      "native_default": [
+        "45"
+      ]
+    },
+    "textured_plate_temp_initial_layer": {
+      "classification": "native_exportable",
+      "native_default": [
+        "45"
+      ]
+    },
+    "thic_birdges": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "thick_bridges": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "thick_internal_bridges": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "thumbnail": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "thumbnail_size": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "thumbnails": {
+      "classification": "native_exportable",
+      "native_default": "48x48/PNG,300x300/PNG"
+    },
+    "thumbnails_format": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "thumbnails_internal": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "thumbnails_internal_switch": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "time_cost": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "time_lapse_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "timelapse_type": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "tool_change_on_wipe_tower": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "toolchange_cyclic_first_layer": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "toolchange_cyclic_order": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "toolchange_gcode": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "toolchange_ordering": {
+      "classification": "native_exportable",
+      "native_default": "default"
+    },
+    "top_bottom_infill_wall_overlap": {
+      "classification": "native_exportable",
+      "native_default": "25%"
+    },
+    "top_color_penetration_layers": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "top_layer_direction": {
+      "classification": "native_exportable",
+      "native_default": "-1"
+    },
+    "top_shell_layers": {
+      "classification": "native_exportable",
+      "native_default": "4"
+    },
+    "top_shell_thickness": {
+      "classification": "native_exportable",
+      "native_default": "0.6"
+    },
+    "top_solid_infill_flow_ratio": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "top_surface_acceleration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "500"
+      ]
+    },
+    "top_surface_density": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "top_surface_expansion": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "top_surface_expansion_direction": {
+      "classification": "native_exportable",
+      "native_default": "inward_and_outward"
+    },
+    "top_surface_expansion_margin": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "top_surface_filament_id": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "top_surface_fill_order": {
+      "classification": "native_exportable",
+      "native_default": "default"
+    },
+    "top_surface_flow_ratio": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "top_surface_jerk": {
+      "classification": "native_exportable",
+      "native_default": [
+        "9"
+      ]
+    },
+    "top_surface_line_width": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "top_surface_pattern": {
+      "classification": "native_exportable",
+      "native_default": "monotonicline"
+    },
+    "top_surface_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "100"
+      ]
+    },
+    "travel_acceleration": {
+      "classification": "native_exportable",
+      "native_default": [
+        "10000"
+      ]
+    },
+    "travel_jerk": {
+      "classification": "native_exportable",
+      "native_default": [
+        "12"
+      ]
+    },
+    "travel_short_distance_acceleration": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "travel_slope": {
+      "classification": "native_exportable",
+      "native_default": [
+        "3"
+      ]
+    },
+    "travel_speed": {
+      "classification": "native_exportable",
+      "native_default": [
+        "120"
+      ]
+    },
+    "travel_speed_z": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "tree_hybrid_cross_height": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "tree_support_adaptive_layer_height": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "tree_support_angle_slow": {
+      "classification": "native_exportable",
+      "native_default": "25"
+    },
+    "tree_support_auto_brim": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "tree_support_branch_angle": {
+      "classification": "native_exportable",
+      "native_default": "40"
+    },
+    "tree_support_branch_angle_organic": {
+      "classification": "native_exportable",
+      "native_default": "40"
+    },
+    "tree_support_branch_diameter": {
+      "classification": "native_exportable",
+      "native_default": "5"
+    },
+    "tree_support_branch_diameter_angle": {
+      "classification": "native_exportable",
+      "native_default": "5"
+    },
+    "tree_support_branch_diameter_double_wall": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "tree_support_branch_diameter_organic": {
+      "classification": "native_exportable",
+      "native_default": "2"
+    },
+    "tree_support_branch_distance": {
+      "classification": "native_exportable",
+      "native_default": "5"
+    },
+    "tree_support_branch_distance_organic": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "tree_support_brim_width": {
+      "classification": "native_exportable",
+      "native_default": "3"
+    },
+    "tree_support_tip_diameter": {
+      "classification": "native_exportable",
+      "native_default": "0.8"
+    },
+    "tree_support_top_rate": {
+      "classification": "native_exportable",
+      "native_default": "30%"
+    },
+    "tree_support_wall_count": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "type": {
+      "classification": "metadata_not_toolpath",
+      "native_default": null
+    },
+    "unprintable_filament_types": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "unsupported_wall_last": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "upward_compatible_machine": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "use_3mf": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "use_firmware_retraction": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "use_relative_e_distances": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "version": {
+      "classification": "metadata_not_toolpath",
+      "native_default": "2.5.0"
+    },
+    "vertical_shell_speed": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "volumetric_speed_coefficients": {
+      "classification": "native_exportable",
+      "native_default": [
+        ""
+      ]
+    },
+    "wait_for_temp_on_wipe_tower": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "wall_count": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "wall_direction": {
+      "classification": "native_exportable",
+      "native_default": "ccw"
+    },
+    "wall_distribution_count": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "wall_filament": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "wall_generator": {
+      "classification": "native_exportable",
+      "native_default": "arachne"
+    },
+    "wall_infill_order": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "wall_loops": {
+      "classification": "native_exportable",
+      "native_default": "2"
+    },
+    "wall_maximum_deviation": {
+      "classification": "native_exportable",
+      "native_default": "0.025"
+    },
+    "wall_maximum_resolution": {
+      "classification": "native_exportable",
+      "native_default": "0.5"
+    },
+    "wall_sequence": {
+      "classification": "native_exportable",
+      "native_default": "inner wall/outer wall"
+    },
+    "wall_transition_angle": {
+      "classification": "native_exportable",
+      "native_default": "10"
+    },
+    "wall_transition_filter_deviation": {
+      "classification": "native_exportable",
+      "native_default": "25%"
+    },
+    "wall_transition_length": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "wipe": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0"
+      ]
+    },
+    "wipe_before_external_loop": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "wipe_distance": {
+      "classification": "native_exportable",
+      "native_default": [
+        "1"
+      ]
+    },
+    "wipe_inward": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "wipe_inward_distance": {
+      "classification": "native_exportable",
+      "native_default": "50%"
+    },
+    "wipe_on_loops": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "wipe_speed": {
+      "classification": "native_exportable",
+      "native_default": "80%"
+    },
+    "wipe_tower_bridging": {
+      "classification": "native_exportable",
+      "native_default": "10"
+    },
+    "wipe_tower_cone_angle": {
+      "classification": "native_exportable",
+      "native_default": "30"
+    },
+    "wipe_tower_extra_flow": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "wipe_tower_extra_rib_length": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "wipe_tower_extra_spacing": {
+      "classification": "native_exportable",
+      "native_default": "100%"
+    },
+    "wipe_tower_extruder": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "wipe_tower_filament": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "wipe_tower_fillet_wall": {
+      "classification": "native_exportable",
+      "native_default": "1"
+    },
+    "wipe_tower_max_purge_speed": {
+      "classification": "native_exportable",
+      "native_default": "90"
+    },
+    "wipe_tower_no_sparse_layers": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "wipe_tower_rib_width": {
+      "classification": "native_exportable",
+      "native_default": "8"
+    },
+    "wipe_tower_rotation_angle": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "wipe_tower_sparse_layers_combination": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "wipe_tower_type": {
+      "classification": "native_exportable",
+      "native_default": "type2"
+    },
+    "wipe_tower_wall_type": {
+      "classification": "native_exportable",
+      "native_default": "rib"
+    },
+    "wipe_tower_x": {
+      "classification": "native_exportable",
+      "native_default": [
+        "15"
+      ]
+    },
+    "wipe_tower_y": {
+      "classification": "native_exportable",
+      "native_default": [
+        "220"
+      ]
+    },
+    "wiping_volumes_extruders": {
+      "classification": "native_exportable",
+      "native_default": [
+        "70",
+        "70",
+        "70",
+        "70",
+        "70",
+        "70",
+        "70",
+        "70",
+        "70",
+        "70"
+      ]
+    },
+    "wrapping_detection_gcode": {
+      "classification": "native_exportable",
+      "native_default": ""
+    },
+    "wrapping_detection_layers": {
+      "classification": "native_exportable",
+      "native_default": "20"
+    },
+    "wrapping_exclude_area": {
+      "classification": "native_exportable",
+      "native_default": []
+    },
+    "xy_contour_compensation": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "xy_hole_compensation": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "z_direction_outwall_speed_continuous": {
+      "classification": "official_not_native_exportable",
+      "native_default": null
+    },
+    "z_hop": {
+      "classification": "native_exportable",
+      "native_default": [
+        "0.4"
+      ]
+    },
+    "z_hop_types": {
+      "classification": "native_exportable",
+      "native_default": [
+        "Slope Lift"
+      ]
+    },
+    "z_offset": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "zaa_dont_alternate_fill_direction": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "zaa_enabled": {
+      "classification": "native_exportable",
+      "native_default": "0"
+    },
+    "zaa_min_z": {
+      "classification": "native_exportable",
+      "native_default": "0.05"
+    },
+    "zaa_minimize_perimeter_height": {
+      "classification": "native_exportable",
+      "native_default": "35"
+    }
+  }
+}
