@@ -5,7 +5,7 @@ const SHORTCUT_GROUPS: Array<{ title: string; items: Array<[string, string]> }> 
   {
     title: "Workspace & Camera",
     items: [
-      ["Tab", "Toggle Prepare ↔ Preview"],
+      ["Tab", "Toggle Prepare ↔ Preview (auto-slices if unsliced)"],
       ["0", "Isometric camera view"],
       ["1 / 2", "Top / Bottom view"],
       ["3 / 4", "Front / Back view"],

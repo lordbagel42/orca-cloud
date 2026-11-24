@@ -1234,10 +1234,19 @@ export function useWorkspace() {
       const key = e.key;
       const k = key.toLowerCase();
 
-      // OrcaSlicer desktop Tab: toggle Prepare <-> Preview
+      // OrcaSlicer desktop Tab: toggle Prepare <-> Preview (auto-slices if unsliced/stale with models loaded)
       if (key === "Tab" && !mod && !e.altKey) {
         e.preventDefault();
-        setTab((prev) => (prev === "preview" ? "prepare" : "preview"));
+        if (tab === "preview") {
+          setTab("prepare");
+        } else {
+          const hasVisible = activePlate.objects.some((o) => o.visible);
+          if (hasVisible && (!parsedGcode || sliceStale)) {
+            if (!slicing) void sliceActivePlate();
+          } else {
+            setTab("preview");
+          }
+        }
         return;
       }
 
@@ -1376,6 +1385,8 @@ export function useWorkspace() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
     tab,
+    activePlate,
+    sliceStale,
     undo,
     redo,
     cloneSelected,
