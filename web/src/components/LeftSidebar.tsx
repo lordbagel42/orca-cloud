@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Box,
   ChevronDown,
+  Cloud,
   Code2,
   Eye,
   EyeOff,
@@ -9,6 +10,7 @@ import {
   PaintBucket,
   Plus,
   Printer,
+  RefreshCw,
   RotateCcw,
   Search,
   Settings2,
@@ -17,6 +19,8 @@ import {
   X,
 } from "lucide-react";
 import type { WorkspaceAPI } from "../store/useWorkspace";
+import type { BambuCloudAPI } from "../store/useBambuCloud";
+import { mapBambuModelToMachineName } from "../lib/bambuApi";
 import { BED_TYPES, type BedType, type SubPartType } from "../types";
 import {
   FILAMENT_SWATCH_PALETTE,
@@ -32,7 +36,15 @@ import {
   PrinterEditorModal,
 } from "./ProfileEditorModal";
 
-export function LeftSidebar({ ws }: { ws: WorkspaceAPI }) {
+export function LeftSidebar({
+  ws,
+  bambu,
+  onOpenBambuCloud,
+}: {
+  ws: WorkspaceAPI;
+  bambu: BambuCloudAPI;
+  onOpenBambuCloud: () => void;
+}) {
   const [picker, setPicker] = useState<
     | { kind: "machine" }
     | { kind: "process" }
@@ -140,6 +152,53 @@ export function LeftSidebar({ ws }: { ws: WorkspaceAPI }) {
           </div>
         </div>
 
+        {/* Browser-saved Bambu Cloud printers switcher (when connected) */}
+        {bambu.isConnected && bambu.state.printers.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 10.5, color: "var(--text-muted)" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <Cloud size={11} color="var(--accent-text)" /> My Bambu Printers
+              </span>
+              <button
+                className="btn btn-ghost"
+                style={{ height: 18, padding: "0 4px", fontSize: 10.5 }}
+                onClick={onOpenBambuCloud}
+              >
+                Manage
+              </button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {bambu.state.printers.map((bp) => {
+                const active = bambu.selectedPrinter?.serial === bp.serial;
+                const live = bambu.state.printerStates[bp.serial];
+                return (
+                  <button
+                    key={bp.serial}
+                    className={`btn btn-sm ${active ? "btn-primary" : ""}`}
+                    style={{ height: 24, fontSize: 11, padding: "0 8px", flex: "1 1 auto" }}
+                    onClick={() => {
+                      bambu.selectPrinter(bp.serial);
+                      const machineName = mapBambuModelToMachineName(bp.model, live?.nozzleDiameter);
+                      ws.setPrinter({ vendor: "BBL", name: machineName });
+                    }}
+                    title={`${bp.name} (${bp.model}) · ${bp.online ? live?.gcodeState || bp.status || "Online" : "Offline"}`}
+                  >
+                    <span
+                      className={`status-dot ${bp.online ? "" : "offline"}`}
+                      style={{
+                        width: 6,
+                        height: 6,
+                        ...(active && bp.online ? { background: "var(--accent-fg)" } : {}),
+                      }}
+                    />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{bp.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Quick official Bambu Lab printer switcher (A1 mini & P1S) + Browse all 72 vendors */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
           <button
@@ -217,6 +276,29 @@ export function LeftSidebar({ ws }: { ws: WorkspaceAPI }) {
             <PaintBucket size={13} /> Filaments ({ws.filaments.length})
           </span>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+            {bambu.isConnected && bambu.selectedPrinter && (
+              <button
+                className="btn btn-sm"
+                style={{ height: 22, padding: "0 6px", fontSize: 11 }}
+                disabled={bambu.syncingSerial === bambu.selectedPrinter.serial}
+                onClick={async () => {
+                  const sn = bambu.selectedPrinter!.serial;
+                  const live = (await bambu.refreshPrinterState(sn, true)) || bambu.state.printerStates[sn];
+                  if (live?.amsTrays?.length) {
+                    ws.syncFilamentsFromAms(live.amsTrays);
+                  } else {
+                    ws.notify("No loaded AMS or external spool filaments reported by printer", "info");
+                  }
+                }}
+                title={`Sync loaded AMS filaments from ${bambu.selectedPrinter.name}`}
+              >
+                <RefreshCw
+                  size={10}
+                  className={bambu.syncingSerial === bambu.selectedPrinter.serial ? "spin" : ""}
+                />
+                AMS
+              </button>
+            )}
             {ws.filaments.length > 1 && (
               <button
                 className="btn btn-sm"

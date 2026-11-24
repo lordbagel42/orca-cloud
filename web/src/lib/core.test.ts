@@ -13,6 +13,13 @@ import { generateCalibrationModel } from "./calibration";
 import { buildVGCodeVertexStream } from "./vgcodeRenderer";
 import { applyDeadzoneCurve, parseSpaceMouseReport } from "./spacemouse";
 import { hexToSrgbRgb } from "./orcaShaders";
+import {
+  mapBambuModelToMachineName,
+  mapBedTypeToBambuParam,
+  md5Hex,
+  normalizeBambuColorHex,
+  parseBambuDeviceState,
+} from "./bambuApi";
 import { exportPlateTo3MF } from "./threemf";
 import type { Plate } from "../types";
 
@@ -296,5 +303,51 @@ describe("libvgcode volumetric vertex stream", () => {
     expect(r).toBeCloseTo(34 / 255, 5);
     expect(g).toBeCloseTo(197 / 255, 5);
     expect(b).toBeCloseTo(94 / 255, 5);
+  });
+
+  it("parses Bambu MQTT device state, maps printer models, and computes RFC 1321 MD5 digests", () => {
+    expect(mapBambuModelToMachineName("N1", "0.2")).toBe("Bambu Lab A1 mini 0.2 nozzle");
+    expect(mapBambuModelToMachineName("Bambu Lab P1S", "0.4")).toBe("Bambu Lab P1S 0.4 nozzle");
+    expect(mapBambuModelToMachineName("BL-P001", null)).toBe("Bambu Lab X1 Carbon 0.4 nozzle");
+    expect(mapBedTypeToBambuParam("Textured PEI Plate")).toBe("textured_plate");
+    expect(normalizeBambuColorHex("00AE42FF")).toBe("#00ae42");
+
+    // RFC 1321 test vectors
+    expect(md5Hex(new Uint8Array([]))).toBe("d41d8cd98f00b204e9800998ecf8427e");
+    expect(md5Hex(new TextEncoder().encode("abc"))).toBe("900150983cd24fb0d6963f7d28e17f72");
+    expect(md5Hex(new TextEncoder().encode("message digest"))).toBe("f96b697d7cb7938d525a2f31aaf161d0");
+
+    const parsed = parseBambuDeviceState({
+      print: {
+        gcode_state: "RUNNING",
+        subtask_name: "benchy_plate_1",
+        mc_percent: 42,
+        mc_remaining_time: 18,
+        nozzle_temper: 219.6,
+        nozzle_target_temper: 220,
+        bed_temper: 64.8,
+        bed_target_temper: 65,
+        nozzle_diameter: "0.4",
+        ams: {
+          ams: [
+            {
+              id: "0",
+              tray: [
+                { id: "0", tray_type: "PLA", tray_sub_brands: "Bambu PLA Basic", tray_color: "22C55EFF", remain: 84 },
+                { id: "1", tray_type: "PETG", tray_sub_brands: "PETG HF", tray_color: "38BDF8FF", remain: 50 },
+              ],
+            },
+          ],
+        },
+        vt_tray: { tray_type: "TPU", tray_sub_brands: "TPU 95A", tray_color: "111111FF" },
+      },
+    });
+    expect(parsed.gcodeState).toBe("RUNNING");
+    expect(parsed.progressPct).toBe(42);
+    expect(parsed.nozzleDiameter).toBe("0.4");
+    expect(parsed.amsTrays).toHaveLength(3);
+    expect(parsed.amsTrays[0]).toMatchObject({ globalSlot: 0, material: "PLA", colorHex: "#22c55e", isExternal: false });
+    expect(parsed.amsTrays[1]).toMatchObject({ globalSlot: 1, material: "PETG", colorHex: "#38bdf8", isExternal: false });
+    expect(parsed.amsTrays[2]).toMatchObject({ globalSlot: 254, material: "TPU", colorHex: "#111111", isExternal: true });
   });
 });

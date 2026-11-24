@@ -7,6 +7,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 const backendTarget = process.env.ORCA_BACKEND_URL || "http://127.0.0.1:8080";
+const bambuApiTarget = process.env.BAMBU_API_URL || "https://bambuapi.raygen.dev";
 
 interface BundledAsset {
   raw: Buffer;
@@ -209,11 +210,62 @@ function orcaBundledDevPlugin(): Plugin {
           return;
         }
 
-        // Serve bundled HTML for `/` and SPA routes (skip /api and real static files in public/)
+        // Stateless presigned S3 PUT forwarder matching web/worker/index.ts for local dev
+        if (pathname === "/bambu-upload" && reqNode.method === "PUT") {
+          const target = String(reqNode.headers["x-upload-target"] || "");
+          let parsed: URL;
+          try {
+            parsed = new URL(target);
+          } catch {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: "Invalid X-Upload-Target URL" }));
+            return;
+          }
+          const h = parsed.hostname.toLowerCase();
+          const okHost =
+            h.endsWith(".amazonaws.com") ||
+            h.endsWith(".aliyuncs.com") ||
+            h.endsWith(".bambulab.com") ||
+            h.endsWith(".bambulab.net");
+          if (parsed.protocol !== "https:" || !okHost) {
+            res.statusCode = 403;
+            res.end(JSON.stringify({ error: "Upload host not allowed" }));
+            return;
+          }
+          const chunks: Buffer[] = [];
+          reqNode.on("data", (c: Buffer) => chunks.push(c));
+          reqNode.on("end", async () => {
+            try {
+              const bodyBuf = Buffer.concat(chunks);
+              const headers: Record<string, string> = {};
+              if (reqNode.headers["content-type"]) headers["Content-Type"] = String(reqNode.headers["content-type"]);
+              const upstream = await fetch(parsed.toString(), {
+                method: "PUT",
+                headers,
+                body: bodyBuf,
+              });
+              const out = Buffer.from(await upstream.arrayBuffer());
+              res.statusCode = upstream.status;
+              res.end(out);
+            } catch (err) {
+              res.statusCode = 502;
+              res.end(String(err));
+            }
+          });
+          return;
+        }
+
+        // Serve bundled HTML for `/` and SPA routes (skip /api, /bambu-api, and real static files in public/)
         const isGet = (reqNode.method || "GET") === "GET";
         const accept = String(reqNode.headers.accept || "");
         const hasExt = path.extname(pathname) !== "" && pathname !== "/index.html";
-        if (isGet && !pathname.startsWith("/api") && !hasExt && (pathname === "/" || pathname === "/index.html" || accept.includes("text/html"))) {
+        if (
+          isGet &&
+          !pathname.startsWith("/api") &&
+          !pathname.startsWith("/bambu-api") &&
+          !hasExt &&
+          (pathname === "/" || pathname === "/index.html" || accept.includes("text/html"))
+        ) {
           if (pathname !== "/" && pathname !== "/index.html") {
             const candidate = path.resolve(publicDir, pathname.replace(/^\/+/, ""));
             if (candidate.startsWith(publicDir) && fs.existsSync(candidate)) {
@@ -270,7 +322,12 @@ export default defineConfig({
       "/api": {
         target: backendTarget,
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
+        rewrite: (p) => p.replace(/^\/api/, ""),
+      },
+      "/bambu-api": {
+        target: bambuApiTarget,
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/bambu-api/, ""),
       },
     },
   },

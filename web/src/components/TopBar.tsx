@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
+  Cloud,
   Download,
   FilePlus,
   FolderOpen,
@@ -12,18 +13,23 @@ import {
   PanelLeft,
   Play,
   Save,
+  Send,
   Server,
   SlidersHorizontal,
 } from "lucide-react";
 import type { WorkspaceAPI } from "../store/useWorkspace";
+import type { BambuCloudAPI } from "../store/useBambuCloud";
 
 interface Props {
   ws: WorkspaceAPI;
+  bambu: BambuCloudAPI;
   onOpenShortcuts: () => void;
+  onOpenBambuCloud: () => void;
+  onOpenPrintPlate: () => void;
   onTriggerFileImport: () => void;
 }
 
-export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
+export function TopBar({ ws, bambu, onOpenShortcuts, onOpenBambuCloud, onOpenPrintPlate, onTriggerFileImport }: Props) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [serverPopOpen, setServerPopOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -179,8 +185,30 @@ export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
         </button>
       </nav>
 
-      {/* Right Action Cluster: Engine Status + Slice CTA + Export */}
+      {/* Right Action Cluster: Bambu Cloud + Engine Status + Export + Print/Slice CTA */}
       <div className="topbar-right">
+        <button
+          className="status-pill"
+          onClick={onOpenBambuCloud}
+          title={
+            bambu.isConnected
+              ? `Bambu Cloud connected (${bambu.selectedPrinter?.name || bambu.state.account?.name || "Account"}) — saved in browser`
+              : "Connect Bambu Cloud printers (bambuapi.raygen.dev, stored locally in browser)"
+          }
+          aria-label={bambu.isConnected ? "Bambu Cloud connected" : "Connect Bambu Cloud"}
+        >
+          {bambu.isConnected ? (
+            <span className={`status-dot ${bambu.selectedPrinter?.online === false ? "offline" : ""}`} />
+          ) : (
+            <Cloud size={12} color="var(--text-muted)" />
+          )}
+          <span className="mono">
+            {bambu.isConnected
+              ? bambu.selectedPrinter?.name || bambu.state.account?.name || "Bambu"
+              : "Bambu"}
+          </span>
+        </button>
+
         <div ref={serverRef} style={{ position: "relative" }}>
           <button
             className="status-pill"
@@ -272,7 +300,19 @@ export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
               <ChevronDown size={12} />
             </button>
             {exportMenuOpen && (
-              <div className="menu-popover" style={{ top: 42, right: 112, width: 220 }}>
+              <div className="menu-popover" style={{ top: 42, right: 112, width: 230 }}>
+                <button
+                  className="menu-item"
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    onOpenPrintPlate();
+                  }}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "var(--accent-text)", fontWeight: 600 }}>
+                    <Send size={13} /> Print Plate (Bambu Cloud)…
+                  </span>
+                </button>
+                <div className="menu-sep" />
                 <button
                   className="menu-item"
                   onClick={() => {
@@ -306,8 +346,18 @@ export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
           </div>
         )}
 
-        <button
-          className="btn btn-primary topbar-slice-btn"
+        {ws.parsedGcode && ws.tab === "preview" && !ws.sliceStale ? (
+          <button
+            className="btn btn-primary topbar-slice-btn"
+            onClick={onOpenPrintPlate}
+            title="Send sliced plate to a Bambu Cloud printer"
+          >
+            <Send size={13} />
+            <span>Print Plate</span>
+          </button>
+        ) : (
+          <button
+            className="btn btn-primary topbar-slice-btn"
           style={{ height: 32, padding: "0 14px" }}
           disabled={ws.slicing || !ws.activePlate.objects.some((o) => o.visible)}
           onClick={ws.sliceActivePlate}
@@ -325,6 +375,7 @@ export function TopBar({ ws, onOpenShortcuts, onTriggerFileImport }: Props) {
             </>
           )}
         </button>
+        )}
       </div>
     </header>
   );

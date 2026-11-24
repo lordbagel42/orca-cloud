@@ -941,6 +941,50 @@ export function useWorkspace() {
     setSliceStale(true);
   }, []);
 
+  const syncFilamentsFromAms = useCallback(
+    (trays: Array<{ material: string; subBrand: string; colorHex: string; empty?: boolean }>) => {
+      const loaded = trays.filter((t) => !t.empty).slice(0, 8);
+      if (loaded.length === 0) {
+        notify("No loaded AMS or external spool filaments found on this printer", "info");
+        return;
+      }
+      const compatList = compatibleProfiles?.filaments || [];
+      const fallbackProfile = filaments[0]?.profile || { vendor: "BBL", name: "Bambu PLA Basic @BBL A1M" };
+
+      const matchProfile = (subBrand: string, material: string) => {
+        const sub = subBrand.trim().toLowerCase();
+        const mat = material.trim().toLowerCase();
+        if (compatList.length > 0) {
+          const exactBrand = compatList.find((p) => sub && p.name.toLowerCase().includes(sub));
+          if (exactBrand) return { vendor: exactBrand.vendor, name: exactBrand.name };
+          const bambuMat = compatList.find(
+            (p) => mat && p.name.toLowerCase().includes("bambu") && p.name.toLowerCase().includes(mat)
+          );
+          if (bambuMat) return { vendor: bambuMat.vendor, name: bambuMat.name };
+          const anyMat = compatList.find((p) => mat && p.name.toLowerCase().includes(mat));
+          if (anyMat) return { vendor: anyMat.vendor, name: anyMat.name };
+        }
+        return { ...fallbackProfile };
+      };
+
+      const nextSlots: FilamentSlot[] = loaded.map((tray, idx) => ({
+        id: `fil-ams-${idx + 1}`,
+        profile: matchProfile(tray.subBrand, tray.material),
+        color: tray.colorHex,
+        overrides: {},
+      }));
+      setFilaments(nextSlots);
+      setFlushMatrix(
+        Array.from({ length: nextSlots.length }, (_, r) =>
+          Array.from({ length: nextSlots.length }, (_, c) => (r === c ? 0 : 280))
+        )
+      );
+      setSliceStale(true);
+      notify(`Synced ${nextSlots.length} filament slot${nextSlots.length === 1 ? "" : "s"} from AMS`, "success");
+    },
+    [compatibleProfiles, filaments, notify]
+  );
+
   // Process override helpers (Global or Selected Object / SubPart)
   const setSettingValue = useCallback(
     (key: string, value: OrcaValue | undefined) => {
@@ -1030,6 +1074,14 @@ export function useWorkspace() {
       notify(`Failed to download sliced 3MF: ${err instanceof Error ? err.message : String(err)}`, "error");
     }
   }, [currentJob, activePlate?.name, notify]);
+
+  const getSliced3MFBytes = useCallback(async (): Promise<Uint8Array> => {
+    if (!currentJob || currentJob.status !== "succeeded") {
+      throw new Error("Slice the active plate before sending to a printer");
+    }
+    const blob = await download3mf(currentJob.id);
+    return new Uint8Array(await blob.arrayBuffer());
+  }, [currentJob]);
 
   // REAL NATIVE ORCASLICER 2.5.0 SLICING!
   const sliceActivePlate = useCallback(async () => {
@@ -1426,7 +1478,7 @@ export function useWorkspace() {
     processSettings,
     processOverrides, setProcessOverrides,
     bedType, setBedType,
-    filaments, addFilamentSlot, removeFilamentSlot, updateFilamentSlot,
+    filaments, addFilamentSlot, removeFilamentSlot, updateFilamentSlot, syncFilamentsFromAms,
     flushMatrix, setFlushMatrix,
     plates, activePlate, activePlateId, setActivePlateId,
     addPlate, duplicateActivePlate, deletePlate, newProject,
@@ -1451,7 +1503,7 @@ export function useWorkspace() {
     addSubPartToSelected, updateSubPart,
     setSettingValue,
     applyCalibration,
-    exportPlateSTLFile, exportSelectedObjectSTL, exportProject3MFFile, exportSlicedGcodeFile, exportSliced3MFFile,
+    exportPlateSTLFile, exportSelectedObjectSTL, exportProject3MFFile, exportSlicedGcodeFile, exportSliced3MFFile, getSliced3MFBytes,
     health, backendOnline, backendUrl, bearerToken, updateBackendConnection, refreshHealth,
     slicing, sliceStatusText, sliceActivePlate, currentJob, parsedGcode, sliceStale,
     colorScheme, setColorScheme,

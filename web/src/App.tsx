@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, FolderOpen } from "lucide-react";
 import { useWorkspace } from "./store/useWorkspace";
+import { useBambuCloud } from "./store/useBambuCloud";
 import { TopBar } from "./components/TopBar";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { PrepareToolbar } from "./components/PrepareToolbar";
@@ -10,10 +11,15 @@ import { PreviewOverlay } from "./components/PreviewOverlay";
 import { CalibrationView } from "./components/CalibrationView";
 import { PlateBar } from "./components/PlateBar";
 import { ShortcutsModal } from "./components/ShortcutsModal";
+import { BambuCloudModal } from "./components/BambuCloudModal";
+import { PrintPlateModal } from "./components/PrintPlateModal";
 
 export function App() {
   const ws = useWorkspace();
+  const bambu = useBambuCloud();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [bambuOpen, setBambuOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const triggerFileImport = () => fileInputRef.current?.click();
@@ -47,7 +53,10 @@ export function App() {
 
       <TopBar
         ws={ws}
+        bambu={bambu}
         onOpenShortcuts={() => setShortcutsOpen(true)}
+        onOpenBambuCloud={() => setBambuOpen(true)}
+        onOpenPrintPlate={() => setPrintOpen(true)}
         onTriggerFileImport={triggerFileImport}
       />
 
@@ -59,7 +68,7 @@ export function App() {
               aria-hidden="true"
               onClick={() => ws.setSidebarOpen(false)}
             />
-            <LeftSidebar ws={ws} />
+            <LeftSidebar ws={ws} bambu={bambu} onOpenBambuCloud={() => setBambuOpen(true)} />
           </>
         )}
 
@@ -105,6 +114,15 @@ export function App() {
       </main>
 
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+
+      <BambuCloudModal open={bambuOpen} onClose={() => setBambuOpen(false)} bambu={bambu} ws={ws} />
+      <PrintPlateModal
+        open={printOpen}
+        onClose={() => setPrintOpen(false)}
+        onOpenConnect={() => setBambuOpen(true)}
+        bambu={bambu}
+        ws={ws}
+      />
 
       {ws.tab === "calibration" && ws.toast && (
         <div className={`toast toast-fixed ${ws.toast.kind}`} role="status" aria-live="polite">

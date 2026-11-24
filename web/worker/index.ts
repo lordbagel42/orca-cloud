@@ -7,6 +7,7 @@ interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   ORCA_ORIGIN?: string;
   ORCA_API_KEY?: string;
+  BAMBU_API_ORIGIN?: string;
 }
 
 const ALLOWED_PREFIXES = [
@@ -23,8 +24,32 @@ const ALLOWED_PREFIXES = [
   "/v2/assets/",
 ];
 
+const ALLOWED_BAMBU_PREFIXES = [
+  "/v1/healthz",
+  "/v1/auth/",
+  "/v1/me",
+  "/v1/keys",
+  "/v1/printers",
+  "/v1/devices",
+  "/v1/cloud/",
+];
+
 function isApiPath(pathname: string): boolean {
   return ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
+}
+
+function isBambuPath(pathname: string): boolean {
+  return ALLOWED_BAMBU_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
+}
+
+function isAllowedUploadHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return (
+    h.endsWith(".amazonaws.com") ||
+    h.endsWith(".aliyuncs.com") ||
+    h.endsWith(".bambulab.com") ||
+    h.endsWith(".bambulab.net")
+  );
 }
 
 export default {
@@ -32,6 +57,75 @@ export default {
     const url = new URL(request.url);
     const origin = (env.ORCA_ORIGIN || "https://orca.bagelindustries.com").replace(/\/+$/, "");
     const originHost = new URL(origin).hostname;
+
+    // Stateless CORS-free proxy for user's browser-stored bambuapi.raygen.dev credentials (zero server-side accounts)
+    if (url.pathname.startsWith("/bambu-api/")) {
+      const bambuPath = url.pathname.slice(10) || "/";
+      if (!isBambuPath(bambuPath)) {
+        return new Response(JSON.stringify({ error: "Bambu route not allowed" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        });
+      }
+      const bambuOrigin = (env.BAMBU_API_ORIGIN || "https://bambuapi.raygen.dev").replace(/\/+$/, "");
+      const targetUrl = `${bambuOrigin}${bambuPath}${url.search}`;
+      const headers = new Headers();
+      for (const name of ["Content-Type", "Accept", "Authorization", "X-API-Key"]) {
+        const val = request.headers.get(name);
+        if (val) headers.set(name, val);
+      }
+      headers.set("User-Agent", "OrcaCloudWebProxy/1.0");
+      const upstream = await fetch(targetUrl, {
+        method: request.method,
+        headers,
+        body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
+        redirect: "manual",
+      });
+      const respHeaders = new Headers(upstream.headers);
+      respHeaders.set("Cache-Control", "no-store");
+      respHeaders.delete("Set-Cookie");
+      return new Response(upstream.body, {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        headers: respHeaders,
+      });
+    }
+
+    // Stateless presigned S3 PUT forwarder so sliced .3mf uploads to Bambu Cloud avoid browser S3 CORS blocks
+    if (url.pathname === "/bambu-upload" && request.method === "PUT") {
+      const target = request.headers.get("X-Upload-Target") || "";
+      let parsedTarget: URL;
+      try {
+        parsedTarget = new URL(target);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid X-Upload-Target URL" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (parsedTarget.protocol !== "https:" || !isAllowedUploadHost(parsedTarget.hostname)) {
+        return new Response(JSON.stringify({ error: "Upload host not allowed" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      const putHeaders = new Headers();
+      const ct = request.headers.get("Content-Type");
+      if (ct) putHeaders.set("Content-Type", ct);
+      const cl = request.headers.get("Content-Length");
+      if (cl) putHeaders.set("Content-Length", cl);
+      const upstream = await fetch(parsedTarget.toString(), {
+        method: "PUT",
+        headers: putHeaders,
+        body: request.body,
+        redirect: "manual",
+      });
+      return new Response(upstream.body, {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
 
     // Pass direct native API routes (/healthz, /openapi.json, /v1/*, /v2/*) straight to the origin backend
     // so existing CLI/Executor clients on orca.bagelindustries.com keep working with their own Bearer auth.
