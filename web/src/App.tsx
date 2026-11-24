@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, FolderOpen } from "lucide-react";
 import { useWorkspace } from "./store/useWorkspace";
 import { TopBar } from "./components/TopBar";
@@ -17,6 +17,17 @@ export function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const triggerFileImport = () => fileInputRef.current?.click();
+
+  useEffect(() => {
+    const onImport = () => fileInputRef.current?.click();
+    const onShortcuts = () => setShortcutsOpen((v) => !v);
+    window.addEventListener("orca-trigger-import", onImport);
+    window.addEventListener("orca-open-shortcuts", onShortcuts);
+    return () => {
+      window.removeEventListener("orca-trigger-import", onImport);
+      window.removeEventListener("orca-open-shortcuts", onShortcuts);
+    };
+  }, []);
 
   return (
     <div className="app-shell">
@@ -51,13 +62,13 @@ export function App() {
               <PrepareToolbar ws={ws} onTriggerFileImport={triggerFileImport} />
             )}
 
-            <Viewport3D ws={ws} />
+            <Viewport3D ws={ws} onTriggerFileImport={triggerFileImport} />
 
             {ws.tab === "prepare" && <ToolInspector ws={ws} />}
 
             {ws.tab === "prepare" && ws.activePlate.objects.length === 0 && (
               <div className="empty-stage-hint">
-                <span>Drop an STL, OBJ, or 3MF onto the build plate, or start right away:</span>
+                <span className="empty-stage-label">Drop STL, OBJ, or 3MF</span>
                 <button className="btn btn-sm btn-primary" onClick={triggerFileImport}>
                   <FolderOpen size={12} /> Import Model
                 </button>
@@ -69,6 +80,16 @@ export function App() {
 
             {ws.tab === "preview" && <PreviewOverlay ws={ws} />}
 
+            {ws.toast && (
+              <div
+                className={`toast ${ws.toast.kind} ${ws.tab === "preview" ? "toast-preview" : ""}`}
+                role="status"
+                aria-live="polite"
+              >
+                {ws.toast.message}
+              </div>
+            )}
+
             <PlateBar ws={ws} />
           </div>
         )}
@@ -76,8 +97,8 @@ export function App() {
 
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
 
-      {ws.toast && (
-        <div className={`toast ${ws.toast.kind}`} role="status" aria-live="polite">
+      {ws.tab === "calibration" && ws.toast && (
+        <div className={`toast toast-fixed ${ws.toast.kind}`} role="status" aria-live="polite">
           {ws.toast.message}
         </div>
       )}

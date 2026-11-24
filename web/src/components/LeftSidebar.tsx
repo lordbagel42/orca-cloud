@@ -572,7 +572,10 @@ export function LeftSidebar({ ws }: { ws: WorkspaceAPI }) {
           </div>
         )}
 
-        {/* Search + Modified filter */}
+      </div>
+
+      {/* STICKY SEARCH & CATEGORY TABS (sticks once Printer & Filaments scroll out of view) */}
+      <div className="process-sticky-bar">
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
             <Search size={12} style={{ position: "absolute", left: 7, color: "var(--text-muted)", pointerEvents: "none" }} />

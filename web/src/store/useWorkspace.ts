@@ -550,6 +550,14 @@ export function useWorkspace() {
     setSelectedObjectId(null);
   }, [selectedObjectId, selectedSubPartId, updateActivePlateObjects]);
 
+  const deleteAllObjectsOnPlate = useCallback(() => {
+    if (activePlate.objects.length === 0) return;
+    updateActivePlateObjects(() => []);
+    setSelectedObjectId(null);
+    setSelectedSubPartId(null);
+    notify(`Cleared all objects from ${activePlate.name}`, "info");
+  }, [activePlate, updateActivePlateObjects, notify]);
+
   const cloneSelected = useCallback(
     (copies = 1) => {
       if (!selectedObject) return;
@@ -882,6 +890,18 @@ export function useWorkspace() {
     triggerBlobDownload(new Blob([bytes.buffer as ArrayBuffer], { type: "model/stl" }), `${activePlate.name.replace(/\s+/g, "_")}.stl`);
   }, [activePlate, notify]);
 
+  const exportSelectedObjectSTL = useCallback(() => {
+    if (!selectedObject) {
+      notify("Select an object first", "error");
+      return;
+    }
+    const mat = getObjectMatrix(selectedObject);
+    const transformed = transformPositions(selectedObject.geometry.positions, mat);
+    const bytes = exportBinarySTL(transformed);
+    const safeName = selectedObject.name.replace(/[^a-zA-Z0-9._-]+/g, "_") || "object";
+    triggerBlobDownload(new Blob([bytes.buffer as ArrayBuffer], { type: "model/stl" }), `${safeName}.stl`);
+  }, [selectedObject, notify]);
+
   const exportProject3MFFile = useCallback(() => {
     if (!activePlate.objects.some((o) => o.visible)) {
       notify("Add a visible model before saving 3MF", "error");
@@ -1052,8 +1072,12 @@ export function useWorkspace() {
     });
   }, []);
 
-  // Keyboard shortcuts
+  // OrcaSlicer desktop keyboard shortcuts
   useEffect(() => {
+    const emitCamera = (preset: string) => {
+      window.dispatchEvent(new CustomEvent("orca-camera-preset", { detail: preset }));
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const editing =
@@ -1062,63 +1086,169 @@ export function useWorkspace() {
       if (editing) return;
 
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === "z") {
+      const key = e.key;
+      const k = key.toLowerCase();
+
+      // OrcaSlicer desktop Tab: toggle Prepare <-> Preview
+      if (key === "Tab" && !mod && !e.altKey) {
+        e.preventDefault();
+        setTab((prev) => (prev === "preview" ? "prepare" : "preview"));
+        return;
+      }
+
+      if (key === "?" || (e.shiftKey && key === "/")) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("orca-open-shortcuts"));
+        return;
+      }
+
+      if (mod && k === "z") {
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
         return;
       }
-      if (mod && e.key.toLowerCase() === "y") {
+      if (mod && k === "y") {
         e.preventDefault();
         redo();
         return;
       }
-      if (mod && e.key.toLowerCase() === "k") {
+      if (mod && k === "k") {
         e.preventDefault();
         cloneSelected(1);
         return;
       }
-      if (mod && e.key.toLowerCase() === "r") {
+      if (mod && k === "i") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("orca-trigger-import"));
+        return;
+      }
+      if (mod && k === "g") {
+        e.preventDefault();
+        if (parsedGcode) exportSlicedGcodeFile();
+        return;
+      }
+      if (mod && k === "b") {
+        e.preventDefault();
+        setSidebarOpen((v) => !v);
+        return;
+      }
+      if (mod && (k === "r" || (e.shiftKey && k === "s"))) {
         e.preventDefault();
         if (!slicing) sliceActivePlate();
         return;
       }
 
+      if (mod || e.altKey) return;
+
+      // OrcaSlicer desktop camera view number keys (0=Iso, 1=Top, 2=Bottom, 3=Front, 4=Back, 5=Left, 6=Right)
+      if (tab !== "calibration") {
+        if (key === "0") { emitCamera("iso"); return; }
+        if (key === "1") { emitCamera("top"); return; }
+        if (key === "2") { emitCamera("bottom"); return; }
+        if (key === "3") { emitCamera("front"); return; }
+        if (key === "4") { emitCamera("back"); return; }
+        if (key === "5") { emitCamera("left"); return; }
+        if (key === "6") { emitCamera("right"); return; }
+        if (e.shiftKey && k === "f") { e.preventDefault(); emitCamera("fit"); return; }
+      }
+
       if (tab === "prepare") {
-        const k = e.key.toLowerCase();
         if (k === "escape") { setTool("select"); setMeasurePoints([]); }
-        else if (k === "m") setTool("move");
-        else if (k === "r") setTool("rotate");
-        else if (k === "s") setTool("scale");
-        else if (k === "f") setTool("lay_on_face");
-        else if (k === "c") setTool("cut");
-        else if (k === "l") setTool("paint_support");
-        else if (k === "p") setTool("paint_seam");
-        else if (k === "n") setTool("paint_color");
-        else if (k === "u") { setTool("measure"); setMeasurePoints([]); }
+        else if (k === "m" && selectedObject) setTool((t) => (t === "move" ? "select" : "move"));
+        else if (k === "r" && selectedObject) setTool((t) => (t === "rotate" ? "select" : "rotate"));
+        else if (k === "s" && selectedObject) setTool((t) => (t === "scale" ? "select" : "scale"));
+        else if (k === "f" && selectedObject) setTool((t) => (t === "lay_on_face" ? "select" : "lay_on_face"));
+        else if (k === "c" && selectedObject) setTool((t) => (t === "cut" ? "select" : "cut"));
+        else if (k === "l" && selectedObject) setTool((t) => (t === "paint_support" ? "select" : "paint_support"));
+        else if (k === "p" && selectedObject) setTool((t) => (t === "paint_seam" ? "select" : "paint_seam"));
+        else if (k === "n" && selectedObject) setTool((t) => (t === "paint_color" ? "select" : "paint_color"));
+        else if (k === "v" && selectedObject) setTool((t) => (t === "variable_layer" ? "select" : "variable_layer"));
+        else if (k === "t") setTool((t) => (t === "text_emboss" ? "select" : "text_emboss"));
+        else if (k === "u") { setMeasurePoints([]); setTool((t) => (t === "measure" ? "select" : "measure")); }
         else if (k === "a") arrangeActivePlate();
-        else if (e.key === "Delete" || e.key === "Backspace") deleteSelected();
+        else if (k === "o" && selectedObject) autoOrientSelectedNative();
+        else if (k === "w") setWireframe((v) => !v);
+        else if (k === "h") setShowOverhangs((v) => !v);
+        else if (e.shiftKey && (key === "Delete" || key === "Backspace")) deleteAllObjectsOnPlate();
+        else if (key === "Delete" || key === "Backspace") deleteSelected();
       } else if (tab === "preview" && parsedGcode) {
-        if (e.key === "ArrowUp") {
+        const activeLayer = parsedGcode.layers[layerTop];
+        const lStart = activeLayer?.startSegment ?? 0;
+        const lEnd = activeLayer?.endSegment ?? parsedGcode.segmentCount;
+
+        if (key === " ") {
           e.preventDefault();
+          if (!isPlaying && moveIndex >= lEnd) setMoveIndex(lStart);
+          setIsPlaying((v) => !v);
+        } else if (key === "ArrowUp") {
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : 1;
           setLayerTop((l) => {
-            const next = Math.min(parsedGcode.layers.length - 1, l + 1);
+            const next = Math.min(parsedGcode.layers.length - 1, l + step);
             setMoveIndex(parsedGcode.layers[next]?.endSegment ?? parsedGcode.segmentCount);
             return next;
           });
-        } else if (e.key === "ArrowDown") {
+        } else if (key === "ArrowDown") {
           e.preventDefault();
+          const step = e.shiftKey ? 10 : 1;
           setLayerTop((l) => {
-            const next = Math.max(layerBottom, l - 1);
+            const next = Math.max(layerBottom, l - step);
             setMoveIndex(parsedGcode.layers[next]?.endSegment ?? parsedGcode.segmentCount);
             return next;
           });
+        } else if (key === "ArrowRight") {
+          e.preventDefault();
+          setIsPlaying(false);
+          const step = e.shiftKey ? 100 : 10;
+          setMoveIndex((m) => Math.min(lEnd, Math.max(lStart, m) + step));
+        } else if (key === "ArrowLeft") {
+          e.preventDefault();
+          setIsPlaying(false);
+          const step = e.shiftKey ? 100 : 10;
+          setMoveIndex((m) => Math.max(lStart, Math.min(lEnd, m) - step));
+        } else if (key === "Home") {
+          e.preventDefault();
+          setLayerTop(layerBottom);
+          setMoveIndex(parsedGcode.layers[layerBottom]?.endSegment ?? 0);
+        } else if (key === "End") {
+          e.preventDefault();
+          const top = Math.max(0, parsedGcode.layers.length - 1);
+          setLayerTop(top);
+          setMoveIndex(parsedGcode.layers[top]?.endSegment ?? parsedGcode.segmentCount);
+        } else if (k === "t") {
+          toggleFeatureVisibility("Travel");
+        } else if (k === "g") {
+          setShowGhost((v) => !v);
+        } else if (k === "x") {
+          setSectionCutEnabled((v) => !v);
+        } else if (k === "h") {
+          setShowNozzle((v) => !v);
         }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [tab, undo, redo, cloneSelected, slicing, sliceActivePlate, arrangeActivePlate, deleteSelected, parsedGcode, layerBottom]);
+  }, [
+    tab,
+    undo,
+    redo,
+    cloneSelected,
+    slicing,
+    sliceActivePlate,
+    arrangeActivePlate,
+    autoOrientSelectedNative,
+    deleteSelected,
+    deleteAllObjectsOnPlate,
+    exportSlicedGcodeFile,
+    selectedObject,
+    parsedGcode,
+    layerBottom,
+    layerTop,
+    isPlaying,
+    moveIndex,
+    toggleFeatureVisibility,
+  ]);
 
   return {
     tab, setTab,
@@ -1155,14 +1285,14 @@ export function useWorkspace() {
     canRedo: redoStack.current.length > 0 && historyVersion >= 0,
     undo, redo,
     addPrimitive, addTextEmboss, importFiles,
-    updateObject, deleteSelected, cloneSelected, mirrorSelected,
+    updateObject, deleteSelected, deleteAllObjectsOnPlate, cloneSelected, mirrorSelected,
     splitSelectedToObjects, cutSelectedAtZ,
     arrangeActivePlate, centerSelected, dropSelectedToBed,
     repairSelectedNative, autoOrientSelectedNative,
     addSubPartToSelected, updateSubPart,
     setSettingValue,
     applyCalibration,
-    exportPlateSTLFile, exportProject3MFFile, exportSlicedGcodeFile, exportSliced3MFFile,
+    exportPlateSTLFile, exportSelectedObjectSTL, exportProject3MFFile, exportSlicedGcodeFile, exportSliced3MFFile,
     health, backendOnline, backendUrl, bearerToken, updateBackendConnection, refreshHealth,
     slicing, sliceStatusText, sliceActivePlate, currentJob, parsedGcode, sliceStale,
     colorScheme, setColorScheme,

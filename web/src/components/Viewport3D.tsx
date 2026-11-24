@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+import { ChevronRight } from "lucide-react";
 import type { WorkspaceAPI } from "../store/useWorkspace";
 import type { BedType, GcodeFeatureType, ParsedGcode, SceneObject, SubPartType } from "../types";
 import {
   computeLayOnFaceRotation,
   getObjectWorldBounds,
   groundObjectPosition,
+  type PrimitiveKind,
 } from "../lib/geometry";
 import { INDEX_TO_FEATURE } from "../lib/gcode";
 import { loadPrinterAssetSTL, loadPrinterAssetSVG } from "../lib/printerAssets";
@@ -218,16 +220,43 @@ function buildObjectBufferGeometry(
   return geom;
 }
 
+type CameraPresetId = "iso" | "top" | "bottom" | "front" | "back" | "left" | "right" | "fit";
+
 interface ContextMenuState {
   x: number;
   y: number;
-  objectId: string;
+  objectId: string | null;
 }
 
-export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
+interface SubmenuState {
+  id: string;
+  top: number;
+  left: number;
+}
+
+const CTX_PRIMITIVES: Array<{ kind: PrimitiveKind; label: string }> = [
+  { kind: "benchy_test", label: "Overhang Boat Test" },
+  { kind: "calibration_cube", label: "Calibration Cube (20 mm)" },
+  { kind: "cube", label: "Cube (25 mm)" },
+  { kind: "cylinder", label: "Cylinder" },
+  { kind: "sphere", label: "Sphere" },
+  { kind: "cone", label: "Cone" },
+  { kind: "torus", label: "Torus" },
+  { kind: "disc", label: "Disc" },
+];
+
+export function Viewport3D({
+  ws,
+  onTriggerFileImport,
+}: {
+  ws: WorkspaceAPI;
+  onTriggerFileImport?: () => void;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const ctxMenuRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
+  const [submenu, setSubmenu] = useState<SubmenuState | null>(null);
 
   // Refs to Three.js scene objects
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -415,10 +444,16 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
     };
 
     let downXY = { x: 0, y: 0 };
+    let rightDownXY = { x: 0, y: 0 };
 
     const onPointerDown = (e: PointerEvent) => {
       setCtxMenu(null);
+      setSubmenu(null);
       downXY = { x: e.clientX, y: e.clientY };
+      if (e.button === 2) {
+        rightDownXY = { x: e.clientX, y: e.clientY };
+        return;
+      }
       const curWs = wsRef.current;
       if (curWs.tab !== "prepare") return;
 
@@ -500,16 +535,25 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+      // Only open context menu on a clean right-click, not after right-drag panning
+      const rightMoved = Math.hypot(e.clientX - rightDownXY.x, e.clientY - rightDownXY.y);
+      if (rightMoved > 6) return;
+
       const curWs = wsRef.current;
-      if (curWs.tab !== "prepare") return;
-      const hits = getHit(e);
-      if (hits.length > 0) {
-        const oid = hits[0].object.userData?.objectId as string | undefined;
-        if (oid) {
-          curWs.setSelectedObjectId(oid);
-          setCtxMenu({ x: e.clientX, y: e.clientY, objectId: oid });
+      setSubmenu(null);
+      if (curWs.tab === "prepare") {
+        const hits = getHit(e);
+        if (hits.length > 0) {
+          const oid = hits[0].object.userData?.objectId as string | undefined;
+          if (oid) {
+            curWs.setSelectedObjectId(oid);
+            curWs.setSelectedSubPartId(null);
+            setCtxMenu({ x: e.clientX, y: e.clientY, objectId: oid });
+            return;
+          }
         }
       }
+      setCtxMenu({ x: e.clientX, y: e.clientY, objectId: null });
     };
 
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
@@ -638,15 +682,6 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
       const bedMesh = new THREE.Mesh(bedGeo, bedMat);
       bedMesh.position.set(bw / 2, bd / 2, -0.02);
       group.add(bedMesh);
-
-      // Build volume wireframe cage
-      const boxEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(bw, bd, bh));
-      const cage = new THREE.LineSegments(
-        boxEdges,
-        new THREE.LineBasicMaterial({ color: "#323846", transparent: true, opacity: 0.55 })
-      );
-      cage.position.set(bw / 2, bd / 2, bh / 2);
-      group.add(cage);
 
       // Origin XYZ axes triad (24mm)
       const addAxis = (to: [number, number, number], hex: string) => {
@@ -995,9 +1030,10 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
       extras.add(cutFrame);
     }
 
-    // Animated Extruder Nozzle Head (official Bambu Lab bbl-3dp-hotend.stl when available)
-    if (ws.showNozzle && maxSeg > 0) {
-      // Find last extruded (non-Travel, non-Custom) move within active layer range so end-G-code park doesn't lift nozzle to Z=100
+    // Animated Extruder Nozzle Head (matches OrcaSlicer desktop: only visible while scrubbing the move slider or playing!)
+    const activeLayerEndSeg = g.layers[ws.layerTop]?.endSegment ?? g.segmentCount;
+    const isScrubbingMoves = ws.isPlaying || maxSeg < activeLayerEndSeg;
+    if (ws.showNozzle && maxSeg > 0 && isScrubbingMoves) {
       const travelIdx = INDEX_TO_FEATURE.indexOf("Travel");
       const customIdx = INDEX_TO_FEATURE.indexOf("Custom");
       let nozzleSeg = maxSeg - 1;
@@ -1040,6 +1076,7 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
     ws.layerTop,
     ws.layerBottom,
     ws.moveIndex,
+    ws.isPlaying,
     ws.colorScheme,
     ws.hiddenFeatures,
     ws.filaments,
@@ -1053,14 +1090,15 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
     ws.sectionCutPosition,
   ]);
 
-  // Camera presets
-  const setCameraPreset = (preset: "iso" | "top" | "front" | "right" | "fit") => {
+  // Camera presets (OrcaSlicer desktop 0=Iso, 1=Top, 2=Bottom, 3=Front, 4=Back, 5=Left, 6=Right, Shift+F=Fit)
+  const setCameraPreset = useCallback((preset: CameraPresetId) => {
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
+    const curWs = wsRef.current;
     if (!cam || !ctrl) return;
-    if (preset === "fit" && ws.tab === "preview" && ws.parsedGcode) {
-      const bMin = ws.parsedGcode.bounds.min;
-      const bMax = ws.parsedGcode.bounds.max;
+    if (preset === "fit" && curWs.tab === "preview" && curWs.parsedGcode) {
+      const bMin = curWs.parsedGcode.bounds.min;
+      const bMax = curWs.parsedGcode.bounds.max;
       const cx = (bMin[0] + bMax[0]) * 0.5;
       const cy = (bMin[1] + bMax[1]) * 0.5;
       const cz = (bMin[2] + bMax[2]) * 0.5;
@@ -1071,16 +1109,83 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
       ctrl.update();
       return;
     }
-    const [bw, bd] = ws.buildVolume;
+    if (preset === "fit" && curWs.tab === "prepare" && curWs.selectedObject) {
+      const wb = getObjectWorldBounds(curWs.selectedObject);
+      const span = Math.max(24, wb.size[0], wb.size[1], wb.size[2]);
+      const dist = span * 2.2;
+      ctrl.target.set(wb.center[0], wb.center[1], wb.center[2]);
+      cam.position.set(wb.center[0] + dist * 0.68, wb.center[1] - dist * 0.85, wb.center[2] + dist * 0.62);
+      ctrl.update();
+      return;
+    }
+    const [bw, bd] = curWs.buildVolume;
     const cx = bw / 2, cy = bd / 2;
     const dist = Math.max(bw, bd) * 1.48;
     ctrl.target.set(cx, cy, 18);
     if (preset === "iso" || preset === "fit") cam.position.set(cx + dist * 0.72, cy - dist * 0.88, dist * 0.66);
     else if (preset === "top") cam.position.set(cx, cy - 0.5, dist * 1.35);
+    else if (preset === "bottom") cam.position.set(cx, cy - 0.5, -dist * 1.25);
     else if (preset === "front") cam.position.set(cx, cy - dist * 1.2, 42);
+    else if (preset === "back") cam.position.set(cx, cy + dist * 1.2, 42);
+    else if (preset === "left") cam.position.set(cx - dist * 1.2, cy, 42);
     else if (preset === "right") cam.position.set(cx + dist * 1.2, cy, 42);
     ctrl.update();
+  }, []);
+
+  // Listen to global camera preset hotkey events (0-6, Shift+F)
+  useEffect(() => {
+    const onCam = (ev: Event) => {
+      const preset = (ev as CustomEvent<CameraPresetId>).detail;
+      if (preset) setCameraPreset(preset);
+    };
+    window.addEventListener("orca-camera-preset", onCam);
+    return () => window.removeEventListener("orca-camera-preset", onCam);
+  }, [setCameraPreset]);
+
+  // Dismiss context menu on outside click or Escape
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const onDown = (e: MouseEvent) => {
+      if (ctxMenuRef.current && !ctxMenuRef.current.contains(e.target as Node)) {
+        setCtxMenu(null);
+        setSubmenu(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setCtxMenu(null);
+        setSubmenu(null);
+      }
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [ctxMenu]);
+
+  const closeCtx = () => {
+    setCtxMenu(null);
+    setSubmenu(null);
   };
+
+  const openSubmenu = (id: string, el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    const subW = 204;
+    const openLeft = rect.right + subW + 8 > window.innerWidth;
+    const left = openLeft ? Math.max(8, rect.left - subW - 4) : rect.right + 4;
+    const top = Math.max(8, Math.min(window.innerHeight - 240, rect.top - 4));
+    setSubmenu({ id, top, left });
+  };
+
+  const ctxObject = ctxMenu?.objectId
+    ? ws.activePlate.objects.find((o) => o.id === ctxMenu.objectId) || null
+    : null;
+  const ctxLeft = ctxMenu ? Math.max(8, Math.min(ctxMenu.x, window.innerWidth - 238)) : 0;
+  const ctxTop = ctxMenu
+    ? Math.max(8, Math.min(ctxMenu.y, window.innerHeight - (ctxObject ? 450 : 340)))
+    : 0;
 
   return (
     <div
@@ -1128,70 +1233,307 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
       >
         {(
           [
-            ["iso", "Iso"],
-            ["top", "Top"],
-            ["front", "Front"],
-            ["right", "Right"],
-            ["fit", "Fit"],
+            ["iso", "Iso", "0"],
+            ["top", "Top", "1"],
+            ["front", "Front", "3"],
+            ["right", "Right", "6"],
+            ["fit", "Fit", "Shift+F"],
           ] as const
-        ).map(([id, label]) => (
-          <button key={id} className="camera-btn" onClick={() => setCameraPreset(id)}>
+        ).map(([id, label, keyHint]) => (
+          <button
+            key={id}
+            className="camera-btn"
+            aria-label={`${label} view (${keyHint})`}
+            onClick={() => setCameraPreset(id)}
+          >
             {label}
           </button>
         ))}
         {ws.tab === "prepare" && (
           <button
             className={`camera-btn ${ws.wireframe ? "active" : ""}`}
+            aria-label="Toggle wireframe (W)"
             onClick={() => ws.setWireframe((v) => !v)}
-            title="Toggle wireframe shading"
           >
             Wire
           </button>
         )}
       </div>
 
-      {/* Right-click Object Context Menu */}
+      {/* Full OrcaSlicer Desktop Right-Click Context Menu (Object & Build Plate) */}
       {ctxMenu && (
-        <div
-          className="menu-popover"
-          style={{ top: Math.min(ctxMenu.y, window.innerHeight - 290), left: Math.min(ctxMenu.x, window.innerWidth - 220), width: 210 }}
-          onMouseLeave={() => setCtxMenu(null)}
-        >
-          <button className="menu-item" onClick={() => { ws.cloneSelected(1); setCtxMenu(null); }}>
-            <span>Clone</span><span className="kbd">Ctrl+K</span>
-          </button>
-          <button className="menu-item" onClick={() => { ws.centerSelected(); setCtxMenu(null); }}>
-            <span>Center on Bed</span>
-          </button>
-          <button className="menu-item" onClick={() => { ws.dropSelectedToBed(); setCtxMenu(null); }}>
-            <span>Drop to Bed (Z=0)</span>
-          </button>
-          <button className="menu-item" onClick={() => { ws.mirrorSelected("x"); setCtxMenu(null); }}>
-            <span>Mirror X</span>
-          </button>
-          <button className="menu-item" onClick={() => { ws.splitSelectedToObjects(); setCtxMenu(null); }}>
-            <span>Split to Objects</span>
-          </button>
-          <div className="menu-sep" />
-          <button className="menu-item" onClick={() => { ws.addSubPartToSelected("modifier_part", "cube"); setCtxMenu(null); }}>
-            <span>Add Modifier Mesh</span>
-          </button>
-          <button className="menu-item" onClick={() => { ws.addSubPartToSelected("negative_part", "cube"); setCtxMenu(null); }}>
-            <span>Add Negative Part</span>
-          </button>
-          <button className="menu-item" onClick={() => { ws.addSubPartToSelected("support_enforcer", "cube"); setCtxMenu(null); }}>
-            <span>Add Support Enforcer</span>
-          </button>
-          <button className="menu-item" onClick={() => { ws.addSubPartToSelected("support_blocker", "cube"); setCtxMenu(null); }}>
-            <span>Add Support Blocker</span>
-          </button>
-          <div className="menu-sep" />
-          <button className="menu-item" onClick={() => { ws.repairSelectedNative(); setCtxMenu(null); }}>
-            <span>Fix Model (Native Repair)</span>
-          </button>
-          <button className="menu-item danger" onClick={() => { ws.deleteSelected(); setCtxMenu(null); }}>
-            <span>Delete</span><span className="kbd">Del</span>
-          </button>
+        <div ref={ctxMenuRef} className="ctx-menu" role="menu" style={{ top: ctxTop, left: ctxLeft }}>
+          {ctxObject ? (
+            <>
+              <div className="ctx-menu-header">
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {ctxObject.name}
+                </span>
+              </div>
+
+              <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.cloneSelected(1); closeCtx(); }}>
+                <span>Clone</span><span className="kbd">Ctrl+K</span>
+              </button>
+              <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.cloneSelected(3); closeCtx(); }}>
+                <span>Clone ×4 Grid</span>
+              </button>
+              <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.centerSelected(); closeCtx(); }}>
+                <span>Center on Bed</span>
+              </button>
+              <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.dropSelectedToBed(); closeCtx(); }}>
+                <span>Drop to Bed (Z=0)</span>
+              </button>
+              <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.setTool("lay_on_face"); closeCtx(); }}>
+                <span>Lay on Face</span><span className="kbd">F</span>
+              </button>
+              <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.autoOrientSelectedNative(); closeCtx(); }}>
+                <span>Auto-Orient</span><span className="kbd">O</span>
+              </button>
+
+              <div className="menu-sep" />
+
+              <button
+                className="menu-item"
+                onMouseEnter={(e) => openSubmenu("mirror", e.currentTarget)}
+                onClick={(e) => openSubmenu("mirror", e.currentTarget)}
+              >
+                <span>Mirror</span><ChevronRight size={13} />
+              </button>
+              <button
+                className="menu-item"
+                onMouseEnter={(e) => openSubmenu("split", e.currentTarget)}
+                onClick={(e) => openSubmenu("split", e.currentTarget)}
+              >
+                <span>Split / Cut</span><ChevronRight size={13} />
+              </button>
+              <button
+                className="menu-item"
+                onMouseEnter={(e) => openSubmenu("modifier", e.currentTarget)}
+                onClick={(e) => openSubmenu("modifier", e.currentTarget)}
+              >
+                <span>Add Modifier / Part</span><ChevronRight size={13} />
+              </button>
+              <button
+                className="menu-item"
+                onMouseEnter={(e) => openSubmenu("filament", e.currentTarget)}
+                onClick={(e) => openSubmenu("filament", e.currentTarget)}
+              >
+                <span>Change Filament</span><ChevronRight size={13} />
+              </button>
+
+              <div className="menu-sep" />
+
+              <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.setTool("variable_layer"); closeCtx(); }}>
+                <span>Variable Layer Height</span><span className="kbd">V</span>
+              </button>
+              <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.repairSelectedNative(); closeCtx(); }}>
+                <span>Fix Model (Repair)</span>
+              </button>
+              <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.exportSelectedObjectSTL(); closeCtx(); }}>
+                <span>Export as STL…</span>
+              </button>
+              <button
+                className="menu-item"
+                onMouseEnter={() => setSubmenu(null)}
+                onClick={() => {
+                  ws.updateObject(ctxObject.id, { visible: !ctxObject.visible });
+                  closeCtx();
+                }}
+              >
+                <span>{ctxObject.visible ? "Hide Object" : "Show Object"}</span>
+              </button>
+
+              <div className="menu-sep" />
+
+              <button className="menu-item danger" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.deleteSelected(); closeCtx(); }}>
+                <span>Delete</span><span className="kbd">Del</span>
+              </button>
+
+              {/* Cascading Submenus */}
+              {submenu?.id === "mirror" && (
+                <div className="ctx-submenu-panel" style={{ top: submenu.top, left: submenu.left }}>
+                  {(["x", "y", "z"] as const).map((ax) => (
+                    <button key={ax} className="menu-item" onClick={() => { ws.mirrorSelected(ax); closeCtx(); }}>
+                      <span>Along {ax.toUpperCase()} Axis</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {submenu?.id === "split" && (
+                <div className="ctx-submenu-panel" style={{ top: submenu.top, left: submenu.left }}>
+                  <button className="menu-item" onClick={() => { ws.splitSelectedToObjects(); closeCtx(); }}>
+                    <span>Split to Objects</span>
+                  </button>
+                  <button className="menu-item" onClick={() => { ws.setTool("cut"); closeCtx(); }}>
+                    <span>Cut at Plane</span><span className="kbd">C</span>
+                  </button>
+                </div>
+              )}
+
+              {submenu?.id === "modifier" && (
+                <div className="ctx-submenu-panel" style={{ top: submenu.top, left: submenu.left }}>
+                  <button className="menu-item" onClick={() => { ws.addSubPartToSelected("modifier_part", "cube"); closeCtx(); }}>
+                    <span>Modifier · Cube</span>
+                  </button>
+                  <button className="menu-item" onClick={() => { ws.addSubPartToSelected("modifier_part", "cylinder"); closeCtx(); }}>
+                    <span>Modifier · Cylinder</span>
+                  </button>
+                  <div className="menu-sep" />
+                  <button className="menu-item" onClick={() => { ws.addSubPartToSelected("negative_part", "cube"); closeCtx(); }}>
+                    <span>Negative Part · Cube</span>
+                  </button>
+                  <button className="menu-item" onClick={() => { ws.addSubPartToSelected("negative_part", "cylinder"); closeCtx(); }}>
+                    <span>Negative Part · Cylinder</span>
+                  </button>
+                  <div className="menu-sep" />
+                  <button className="menu-item" onClick={() => { ws.addSubPartToSelected("support_enforcer", "cube"); closeCtx(); }}>
+                    <span>Support Enforcer</span>
+                  </button>
+                  <button className="menu-item" onClick={() => { ws.addSubPartToSelected("support_blocker", "cube"); closeCtx(); }}>
+                    <span>Support Blocker</span>
+                  </button>
+                  <button className="menu-item" onClick={() => { ws.setTool("paint_support"); closeCtx(); }}>
+                    <span>Paint Supports</span><span className="kbd">L</span>
+                  </button>
+                </div>
+              )}
+
+              {submenu?.id === "filament" && (
+                <div className="ctx-submenu-panel" style={{ top: submenu.top, left: submenu.left }}>
+                  {ws.filaments.map((slot, idx) => (
+                    <button
+                      key={slot.id}
+                      className="menu-item"
+                      onClick={() => {
+                        ws.updateObject(ctxObject.id, { filamentIndex: idx });
+                        closeCtx();
+                      }}
+                    >
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                        <span className="swatch-btn" style={{ width: 10, height: 10, background: slot.color, flexShrink: 0 }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          #{idx + 1} {slot.profile.name}
+                        </span>
+                      </span>
+                      {ctxObject.filamentIndex === idx && <span style={{ color: "var(--accent-text)" }}>✓</span>}
+                    </button>
+                  ))}
+                  {ws.filaments.length < 8 && (
+                    <>
+                      <div className="menu-sep" />
+                      <button className="menu-item" onClick={() => { ws.addFilamentSlot(); closeCtx(); }}>
+                        <span>+ Add Filament Slot</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="ctx-menu-header">
+                <span>{ws.activePlate.name}</span>
+                <span className="mono">{Math.round(ws.buildVolume[0])}×{Math.round(ws.buildVolume[1])}</span>
+              </div>
+
+              {ws.tab === "prepare" && (
+                <>
+                  <button
+                    className="menu-item"
+                    onMouseEnter={(e) => openSubmenu("add_primitive", e.currentTarget)}
+                    onClick={(e) => openSubmenu("add_primitive", e.currentTarget)}
+                  >
+                    <span>Add Primitive</span><ChevronRight size={13} />
+                  </button>
+                  {onTriggerFileImport && (
+                    <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { closeCtx(); onTriggerFileImport(); }}>
+                      <span>Import STL / OBJ / 3MF…</span><span className="kbd">Ctrl+I</span>
+                    </button>
+                  )}
+
+                  <div className="menu-sep" />
+
+                  <button
+                    className="menu-item"
+                    disabled={ws.activePlate.objects.length === 0}
+                    onMouseEnter={() => setSubmenu(null)}
+                    onClick={() => { ws.arrangeActivePlate(); closeCtx(); }}
+                  >
+                    <span>Arrange All Objects</span><span className="kbd">A</span>
+                  </button>
+                  <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.addPlate(); closeCtx(); }}>
+                    <span>Add New Plate</span>
+                  </button>
+                  <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.duplicateActivePlate(); closeCtx(); }}>
+                    <span>Duplicate Plate</span>
+                  </button>
+
+                  <div className="menu-sep" />
+                </>
+              )}
+
+              <button
+                className="menu-item"
+                onMouseEnter={(e) => openSubmenu("camera", e.currentTarget)}
+                onClick={(e) => openSubmenu("camera", e.currentTarget)}
+              >
+                <span>Camera View</span><ChevronRight size={13} />
+              </button>
+              <button
+                className="menu-item"
+                onMouseEnter={() => setSubmenu(null)}
+                onClick={() => { ws.setTab(ws.tab === "preview" ? "prepare" : "preview"); closeCtx(); }}
+              >
+                <span>Switch to {ws.tab === "preview" ? "Prepare" : "Preview"}</span><span className="kbd">Tab</span>
+              </button>
+              {ws.tab === "prepare" && (
+                <button className="menu-item" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.setWireframe((v) => !v); closeCtx(); }}>
+                  <span>{ws.wireframe ? "Solid Shading" : "Wireframe Shading"}</span><span className="kbd">W</span>
+                </button>
+              )}
+
+              {ws.tab === "prepare" && ws.activePlate.objects.length > 0 && (
+                <>
+                  <div className="menu-sep" />
+                  <button className="menu-item danger" onMouseEnter={() => setSubmenu(null)} onClick={() => { ws.deleteAllObjectsOnPlate(); closeCtx(); }}>
+                    <span>Delete All on Plate</span><span className="kbd">Shift+Del</span>
+                  </button>
+                </>
+              )}
+
+              {submenu?.id === "add_primitive" && (
+                <div className="ctx-submenu-panel" style={{ top: submenu.top, left: submenu.left }}>
+                  {CTX_PRIMITIVES.map((p) => (
+                    <button key={p.kind} className="menu-item" onClick={() => { ws.addPrimitive(p.kind); closeCtx(); }}>
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {submenu?.id === "camera" && (
+                <div className="ctx-submenu-panel" style={{ top: submenu.top, left: submenu.left }}>
+                  {(
+                    [
+                      ["iso", "Isometric", "0"],
+                      ["top", "Top", "1"],
+                      ["bottom", "Bottom", "2"],
+                      ["front", "Front", "3"],
+                      ["back", "Back", "4"],
+                      ["left", "Left", "5"],
+                      ["right", "Right", "6"],
+                      ["fit", "Fit View", "Shift+F"],
+                    ] as const
+                  ).map(([id, label, keyHint]) => (
+                    <button key={id} className="menu-item" onClick={() => { setCameraPreset(id); closeCtx(); }}>
+                      <span>{label}</span><span className="kbd">{keyHint}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

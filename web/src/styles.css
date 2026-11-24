@@ -332,12 +332,27 @@ button:disabled {
   flex-direction: column;
   background: var(--bg-panel);
   border-right: 1px solid var(--border-subtle);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   z-index: 20;
 }
 
 .sidebar-section {
+  flex-shrink: 0;
   padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.process-sticky-bar {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  background: var(--bg-panel);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -608,10 +623,8 @@ button:disabled {
 }
 
 .settings-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 8px 12px 16px;
+  flex: 0 0 auto;
+  padding: 10px 12px 24px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -795,21 +808,25 @@ button:disabled {
   color: var(--accent-text);
 }
 
-/* Empty Stage Dropzone Callout */
+/* Empty Stage Dropzone Callout (sits cleanly beneath the Prepare toolbar, never colliding with bottom Camera HUD) */
 .empty-stage-hint {
   position: absolute;
+  top: 58px;
   left: 50%;
-  bottom: 54px;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  background: var(--bg-panel);
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 6px 10px 6px 12px;
+  background: rgba(24, 26, 31, 0.92);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   color: var(--text-secondary);
   font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   z-index: 15;
   pointer-events: auto;
 }
@@ -866,7 +883,7 @@ button:disabled {
   top: 12px;
   right: 54px;
   width: 288px;
-  max-height: calc(100% - 92px);
+  max-height: calc(100% - 108px);
   overflow-y: auto;
   background: rgba(24, 26, 31, 0.95);
   border: 1px solid var(--border-default);
@@ -1157,16 +1174,27 @@ button:disabled {
   color: var(--text-secondary);
 }
 
-/* Toast */
+.tip-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Toast (centered cleanly under PrepareToolbar inside stage-wrap so it never collides with Camera HUD or inspectors) */
 .toast {
-  position: fixed;
+  position: absolute;
   top: 56px;
   left: 50%;
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 7px 13px;
+  max-width: calc(100% - 32px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
   border-radius: var(--radius-lg);
   background: var(--bg-panel);
   border: 1px solid var(--border-strong);
@@ -1174,6 +1202,103 @@ button:disabled {
   font-size: 12.5px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
   z-index: 120;
+  pointer-events: none;
+}
+
+/* Instant Geist Toolbar Tooltip */
+.toolbar-tooltip {
+  position: fixed;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #111318;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-primary);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 160;
+  animation: tooltip-in 90ms ease-out;
+}
+
+.toolbar-tooltip-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Cascading Context Menu Submenus */
+.ctx-menu {
+  position: fixed;
+  min-width: 224px;
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  overflow-x: visible;
+  background: rgba(20, 22, 27, 0.98);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 5px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(12px);
+  z-index: 140;
+}
+
+.ctx-menu-header {
+  padding: 4px 8px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ctx-submenu-item {
+  position: relative;
+}
+
+.ctx-submenu-panel {
+  position: fixed;
+  min-width: 196px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  background: rgba(20, 22, 27, 0.98);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 5px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(12px);
+  z-index: 145;
 }
 
 .toast.success {
@@ -1183,6 +1308,15 @@ button:disabled {
 .toast.error {
   border-color: rgba(239, 68, 68, 0.6);
   color: #fecaca;
+}
+
+.toast.toast-preview {
+  top: 14px;
+}
+
+.toast.toast-fixed {
+  position: fixed;
+  top: 58px;
 }
 
 /* Status Pill */
@@ -1236,6 +1370,19 @@ button:disabled {
 }
 
 /* Responsive */
+@media (max-width: 1180px) {
+  .left-sidebar {
+    width: 276px;
+  }
+  .preview-hud {
+    width: 256px;
+  }
+  .tool-inspector {
+    width: 244px;
+    max-height: calc(100% - 112px);
+  }
+}
+
 @media (max-width: 960px) {
   .left-sidebar {
     position: absolute;
@@ -1272,6 +1419,7 @@ button:disabled {
   .topbar-file-label,
   .topbar-help-btn,
   .topbar-export-btn,
+  .empty-stage-label,
   .workspace-tab svg {
     display: none;
   }

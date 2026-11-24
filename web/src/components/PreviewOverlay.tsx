@@ -52,7 +52,18 @@ export function PreviewOverlay({ ws }: { ws: WorkspaceAPI }) {
 
   if (!gcode) {
     return (
-      <div className="empty-stage-hint" style={{ bottom: "50%", transform: "translate(-50%, 50%)", flexDirection: "column", padding: 20, gap: 12 }}>
+      <div
+        className="empty-stage-hint"
+        style={{
+          top: "50%",
+          bottom: "auto",
+          transform: "translate(-50%, -50%)",
+          flexDirection: "column",
+          whiteSpace: "normal",
+          padding: 20,
+          gap: 12,
+        }}
+      >
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>No Sliced Toolpath Yet</div>
         <div style={{ fontSize: 12, color: "var(--text-secondary)", textAlign: "center", maxWidth: 300 }}>
           Arrange your models in Prepare and click <strong>Slice Plate</strong> to inspect layers, speeds, flows, and G-code.
