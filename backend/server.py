@@ -111,6 +111,10 @@ LIMITS = {
 CATALOG = ProfileCatalog(ROOT)
 
 DATA.mkdir(parents=True, exist_ok=True)
+MESHES_DIR = DATA / "meshes"
+MESHES_DIR.mkdir(parents=True, exist_ok=True)
+MESH_CACHE_TTL = 4 * 3600
+MESH_CACHE_MAX_BYTES = 256 * 1024 * 1024
 DB = sqlite3.connect(DATA / "jobs.sqlite3", check_same_thread=False)
 DB.execute("PRAGMA journal_mode=WAL")
 DB.execute("CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, record TEXT NOT NULL)")
@@ -211,6 +215,218 @@ with LOCK:
         ):
             shutil.rmtree(directory, ignore_errors=True)
     expire()
+
+
+def _prune_staged_meshes():
+    now = time.time()
+    entries: list[tuple[float, int, Path]] = []
+    total = 0
+    for p in MESHES_DIR.glob("*.stl"):
+        try:
+            st = p.stat()
+        except OSError:
+            continue
+        if now - st.st_mtime > MESH_CACHE_TTL:
+            p.unlink(missing_ok=True)
+            continue
+        entries.append((st.st_mtime, st.st_size, p))
+        total += st.st_size
+    if total > MESH_CACHE_MAX_BYTES:
+        entries.sort(key=lambda x: x[0])
+        for _, sz, p in entries:
+            if total <= MESH_CACHE_MAX_BYTES:
+                break
+            p.unlink(missing_ok=True)
+            total -= sz
+
+
+def _euler_xyz_scale_matrix(
+    pos: list[float], rot_deg: list[float], scale: list[float]
+) -> tuple[float, float, float, float, float, float, float, float, float, float, float, float]:
+    """3x4 affine matrix matching Three.js Euler('XYZ') + Scale + Position."""
+    rx, ry, rz = (math.radians(float(a)) for a in rot_deg)
+    cx, sx = math.cos(rx), math.sin(rx)
+    cy, sy = math.cos(ry), math.sin(ry)
+    cz, sz = math.cos(rz), math.sin(rz)
+    scx, scy, scz = (float(s) for s in scale)
+    tx, ty, tz = (float(p) for p in pos)
+
+    # Rotation matrix R = Rx * Ry * Rz (matches Three.js makeRotationFromEuler order 'XYZ')
+    r00 = cy * cz
+    r01 = -cy * sz
+    r02 = sy
+    r10 = cx * sz + sx * sy * cz
+    r11 = cx * cz - sx * sy * sz
+    r12 = -sx * cy
+    r20 = sx * sz - cx * sy * cz
+    r21 = sx * cz + cx * sy * sz
+    r22 = cx * cy
+
+    return (
+        r00 * scx, r01 * scy, r02 * scz, tx,
+        r10 * scx, r11 * scy, r12 * scz, ty,
+        r20 * scx, r21 * scy, r22 * scz, tz,
+    )
+
+
+def _read_stl_triangles(path: Path) -> list[tuple[float, float, float, float, float, float, float, float, float]]:
+    blob = path.read_bytes()
+    if len(blob) >= 84:
+        count = struct.unpack_from("<I", blob, 80)[0]
+        if count > 0 and len(blob) == 84 + 50 * count:
+            tris = []
+            offset = 84
+            for _ in range(count):
+                _, _, _, x1, y1, z1, x2, y2, z2, x3, y3, z3 = struct.unpack_from("<12f", blob, offset)
+                tris.append((x1, y1, z1, x2, y2, z2, x3, y3, z3))
+                offset += 50
+            return tris
+    # ASCII STL fallback
+    tris = []
+    verts: list[tuple[float, float, float]] = []
+    for line in blob.decode("utf-8", errors="ignore").splitlines():
+        parts = line.strip().split()
+        if len(parts) >= 4 and parts[0].lower() == "vertex":
+            verts.append((float(parts[1]), float(parts[2]), float(parts[3])))
+            if len(verts) == 3:
+                tris.append((*verts[0], *verts[1], *verts[2]))
+                verts.clear()
+    return tris
+
+
+def _write_transformed_stl(mesh_path: Path, obj_spec: dict, out_path: Path):
+    tris = _read_stl_triangles(mesh_path)
+    pos = obj_spec.get("position") or [0.0, 0.0, 0.0]
+    rot = obj_spec.get("rotation") or [0.0, 0.0, 0.0]
+    scl = obj_spec.get("scale") or [1.0, 1.0, 1.0]
+    m00, m01, m02, tx, m10, m11, m12, ty, m20, m21, m22, tz = _euler_xyz_scale_matrix(pos, rot, scl)
+
+    header = b"OrcaCloud staged STL".ljust(80, b"\x00")
+    out = bytearray(84 + len(tris) * 50)
+    out[0:80] = header
+    struct.pack_into("<I", out, 80, len(tris))
+    off = 84
+    for x1, y1, z1, x2, y2, z2, x3, y3, z3 in tris:
+        ax = m00 * x1 + m01 * y1 + m02 * z1 + tx
+        ay = m10 * x1 + m11 * y1 + m12 * z1 + ty
+        az = m20 * x1 + m21 * y1 + m22 * z1 + tz
+        bx = m00 * x2 + m01 * y2 + m02 * z2 + tx
+        by = m10 * x2 + m11 * y2 + m12 * z2 + ty
+        bz = m20 * x2 + m21 * y2 + m22 * z2 + tz
+        cx = m00 * x3 + m01 * y3 + m02 * z3 + tx
+        cy = m10 * x3 + m11 * y3 + m12 * z3 + ty
+        cz = m20 * x3 + m21 * y3 + m22 * z3 + tz
+        ux, uy, uz = bx - ax, by - ay, bz - az
+        vx, vy, vz = cx - ax, cy - ay, cz - az
+        nx, ny, nz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
+        nl = math.sqrt(nx * nx + ny * ny + nz * nz) or 1.0
+        struct.pack_into("<12fH", out, off, nx / nl, ny / nl, nz / nl, ax, ay, az, bx, by, bz, cx, cy, cz, 0)
+        off += 50
+    out_path.write_bytes(bytes(out))
+
+
+def _xml_esc(val: str) -> str:
+    return (
+        val.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
+
+
+def _assemble_3mf_from_staged_meshes(objects_spec: list[dict], out_path: Path):
+    """Assemble a native OrcaSlicer .3mf directly from server-staged STL files (zero re-upload!)."""
+    obj_xml_parts: list[str] = []
+    build_items: list[str] = []
+    cfg_objects: list[str] = []
+
+    for idx, spec in enumerate(objects_spec, start=1):
+        mesh_id = spec["mesh_id"]
+        mesh_path = MESHES_DIR / f"{mesh_id}.stl"
+        tris = _read_stl_triangles(mesh_path)
+        pos = spec.get("position") or [0.0, 0.0, 0.0]
+        rot = spec.get("rotation") or [0.0, 0.0, 0.0]
+        scl = spec.get("scale") or [1.0, 1.0, 1.0]
+        m00, m01, m02, tx, m10, m11, m12, ty, m20, m21, m22, tz = _euler_xyz_scale_matrix(pos, rot, scl)
+
+        vert_map: dict[tuple[float, float, float], int] = {}
+        verts_out: list[str] = []
+        tris_out: list[str] = []
+
+        def _add_v(x: float, y: float, z: float) -> int:
+            ax = round(m00 * x + m01 * y + m02 * z + tx, 4)
+            ay = round(m10 * x + m11 * y + m12 * z + ty, 4)
+            az = round(m20 * x + m21 * y + m22 * z + tz, 4)
+            key = (ax, ay, az)
+            vid = vert_map.get(key)
+            if vid is None:
+                vid = len(verts_out)
+                vert_map[key] = vid
+                verts_out.append(f'<vertex x="{ax}" y="{ay}" z="{az}"/>')
+            return vid
+
+        for x1, y1, z1, x2, y2, z2, x3, y3, z3 in tris:
+            v1 = _add_v(x1, y1, z1)
+            v2 = _add_v(x2, y2, z2)
+            v3 = _add_v(x3, y3, z3)
+            tris_out.append(f'<triangle v1="{v1}" v2="{v2}" v3="{v3}"/>')
+
+        name = _xml_esc(str(spec.get("name") or f"object_{idx}"))
+        obj_xml_parts.append(
+            f'<object id="{idx}" name="{name}" type="model"><mesh>'
+            f'<vertices>{"".join(verts_out)}</vertices>'
+            f'<triangles>{"".join(tris_out)}</triangles>'
+            f'</mesh></object>'
+        )
+        build_items.append(f'<item objectid="{idx}" printable="1"/>')
+
+        extruder = int(spec.get("filament_index") or 0) + 1
+        meta_lines = [
+            f'<metadata key="name" value="{name}"/>',
+            f'<metadata key="extruder" value="{extruder}"/>',
+        ]
+        overrides = spec.get("overrides") or {}
+        if isinstance(overrides, dict):
+            for ok, ov in overrides.items():
+                if not isinstance(ok, str) or ok in CATALOG.restricted_keys:
+                    continue
+                ov_str = ov[0] if isinstance(ov, list) and ov else (ov if isinstance(ov, str) else None)
+                if ov_str is not None:
+                    meta_lines.append(f'<metadata key="{_xml_esc(ok)}" value="{_xml_esc(ov_str)}"/>')
+        cfg_objects.append(f'<object id="{idx}">{"".join(meta_lines)}</object>')
+
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>'
+        '<Default Extension="config" ContentType="text/xml"/>'
+        '</Types>'
+    )
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Target="/3D/3dmodel.model" Id="rel-1" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>'
+        '</Relationships>'
+    )
+    model_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">'
+        f'<resources>{"".join(obj_xml_parts)}</resources>'
+        f'<build>{"".join(build_items)}</build>'
+        '</model>'
+    )
+    settings_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<config>{"".join(cfg_objects)}</config>'
+    )
+
+    with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", content_types)
+        zf.writestr("_rels/.rels", rels)
+        zf.writestr("3D/3dmodel.model", model_xml)
+        zf.writestr("Metadata/model_settings.config", settings_xml)
 
 
 def validate_stl(path: Path, build_volume: list[float], preserve_xy: bool = False) -> list[float]:
@@ -788,6 +1004,7 @@ class Handler(BaseHTTPRequestHandler):
                         "multi_filament": True,
                         "multi_plate": True,
                         "preserve_xy": True,
+                        "staged_meshes": True,
                         "mesh_repair": True,
                         "mesh_auto_orient": True,
                         "mesh_inspect": True,
@@ -1088,6 +1305,7 @@ class Handler(BaseHTTPRequestHandler):
             max_body = MAX_INPUT
 
         ctype = self.headers.get("Content-Type", "").split(";")[0].strip().lower()
+        is_json = ctype == "application/json"
         is_3mf = ctype in (
             "model/3mf",
             "application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
@@ -1096,8 +1314,8 @@ class Handler(BaseHTTPRequestHandler):
         is_stl = ctype in ("model/stl", "application/octet-stream")
         if version == 1 and not is_stl:
             return self.reply(415, {"error": "Send raw STL as model/stl or application/octet-stream"})
-        if version == 2 and not (is_stl or is_3mf):
-            return self.reply(415, {"error": "Send raw STL (model/stl) or 3MF (model/3mf)"})
+        if version == 2 and not (is_stl or is_3mf or is_json):
+            return self.reply(415, {"error": "Send raw STL (model/stl), 3MF (model/3mf), or staged mesh JSON (application/json)"})
 
         if self.headers.get("Transfer-Encoding"):
             return self.reply(400, {"error": "Transfer-Encoding is not supported"})
@@ -1108,6 +1326,38 @@ class Handler(BaseHTTPRequestHandler):
         if not 0 < length <= max_body:
             limit_mb = max_body // (1024 * 1024)
             return self.reply(413, {"error": f"Model body must be 1 byte to {limit_mb} MiB"})
+
+        staged_objects: list[dict] | None = None
+        if is_json:
+            try:
+                raw_json = self._read_body_bytes(min(max_body, 512 * 1024))
+                payload = json.loads(raw_json.decode("utf-8"))
+            except (ValueError, OverflowError, json.JSONDecodeError) as exc:
+                return self.reply(400, {"error": f"Invalid JSON job request: {exc}"})
+            objs = payload.get("objects")
+            if not isinstance(objs, list) or not objs:
+                return self.reply(400, {"error": "JSON job request requires a non-empty objects array"})
+            for obj in objs:
+                mid = obj.get("mesh_id") if isinstance(obj, dict) else None
+                if not isinstance(mid, str) or not re.fullmatch(r"[a-f0-9]{64}", mid):
+                    return self.reply(400, {"error": "Each object requires a 64-hex mesh_id"})
+                mpath = MESHES_DIR / f"{mid}.stl"
+                if not mpath.is_file():
+                    return self.reply(404, {"error": f"Staged mesh {mid} not found", "missing_mesh_id": mid})
+                try:
+                    os.utime(mpath, None)
+                except OSError:
+                    pass
+            staged_objects = objs
+            # Single simple object with no per-object overrides & default filament -> fast binary STL, else 3MF
+            first = staged_objects[0]
+            use_staged_3mf = (
+                len(staged_objects) > 1
+                or int(first.get("filament_index") or 0) != 0
+                or bool(first.get("overrides"))
+            )
+            is_3mf = use_staged_3mf
+            is_stl = not use_staged_3mf
 
         with LOCK:
             expire()
@@ -1149,23 +1399,31 @@ class Handler(BaseHTTPRequestHandler):
 
         input_path = directory / ("input.3mf" if is_3mf else "input.stl")
         try:
-            deadline = time.monotonic() + 45
-            hasher = hashlib.sha256()
-            with input_path.open("wb") as upload:
-                remaining = length
-                while remaining:
-                    left = deadline - time.monotonic()
-                    if left <= 0:
-                        raise ValueError("Upload exceeded 45 second deadline")
-                    self.connection.settimeout(left)
-                    chunk = self.rfile.read1(min(65536, remaining))
-                    if not chunk:
-                        raise ValueError("Incomplete upload")
-                    hasher.update(chunk)
-                    upload.write(chunk)
-                    remaining -= len(chunk)
-            self.connection.settimeout(60)
-            model_sha = hasher.hexdigest()
+            if staged_objects is not None:
+                if is_3mf:
+                    _assemble_3mf_from_staged_meshes(staged_objects, input_path)
+                else:
+                    first = staged_objects[0]
+                    _write_transformed_stl(MESHES_DIR / f"{first['mesh_id']}.stl", first, input_path)
+                model_sha = hashlib.sha256(input_path.read_bytes()).hexdigest()
+            else:
+                deadline = time.monotonic() + 45
+                hasher = hashlib.sha256()
+                with input_path.open("wb") as upload:
+                    remaining = length
+                    while remaining:
+                        left = deadline - time.monotonic()
+                        if left <= 0:
+                            raise ValueError("Upload exceeded 45 second deadline")
+                        self.connection.settimeout(left)
+                        chunk = self.rfile.read1(min(65536, remaining))
+                        if not chunk:
+                            raise ValueError("Incomplete upload")
+                        hasher.update(chunk)
+                        upload.write(chunk)
+                        remaining -= len(chunk)
+                self.connection.settimeout(60)
+                model_sha = hasher.hexdigest()
             dimensions = validate_3mf(input_path) if is_3mf else validate_stl(input_path, build_volume, preserve_xy=preserve_xy)
             with LOCK:
                 queued = dict(job, status="queued", model_sha256=model_sha)
@@ -1188,6 +1446,47 @@ class Handler(BaseHTTPRequestHandler):
         with LOCK:
             self.reply(202, job)
 
+    def _handle_staged_mesh_post(self):
+        ctype = self.headers.get("Content-Type", "").split(";")[0].strip().lower()
+        if ctype not in ("model/stl", "application/octet-stream"):
+            return self.reply(415, {"error": "Send raw STL as model/stl or application/octet-stream"})
+        try:
+            raw = self._read_body_bytes(MAX_INPUT, deadline_secs=45.0)
+        except OverflowError as exc:
+            return self.reply(413, {"error": str(exc)})
+        except ValueError as exc:
+            return self.reply(400, {"error": str(exc)})
+
+        sha = hashlib.sha256(raw).hexdigest()
+        target = MESHES_DIR / f"{sha}.stl"
+        dedup = target.is_file()
+        tmp_path = MESHES_DIR / f".tmp-{uuid.uuid4().hex}.stl"
+        try:
+            if not dedup:
+                tmp_path.write_bytes(raw)
+                dims = validate_stl(tmp_path, [1000.0, 1000.0, 1000.0], preserve_xy=False)
+                tmp_path.replace(target)
+            else:
+                os.utime(target, None)
+                dims = validate_stl(target, [1000.0, 1000.0, 1000.0], preserve_xy=False)
+        except Exception as exc:  # noqa: BLE001
+            tmp_path.unlink(missing_ok=True)
+            return self.reply(422, {"error": str(exc)})
+
+        with LOCK:
+            _prune_staged_meshes()
+
+        return self.reply(
+            201,
+            {
+                "mesh_id": sha,
+                "format": "stl",
+                "size_bytes": len(raw),
+                "dimensions_mm": dims,
+                "deduplicated": dedup,
+            },
+        )
+
     def do_POST(self):
         if not self.authenticated():
             return
@@ -1199,6 +1498,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._handle_configuration_post(persist=False)
         if path == "/v2/configurations":
             return self._handle_configuration_post(persist=True)
+        if path == "/v2/meshes":
+            return self._handle_staged_mesh_post()
         if path == "/v1/jobs":
             return self._handle_job_post(version=1, query=query)
         if path == "/v2/jobs":

@@ -18,6 +18,7 @@ const ALLOWED_PREFIXES = [
   "/v2/settings",
   "/v2/configurations",
   "/v2/jobs",
+  "/v2/meshes",
   "/v2/mesh/",
   "/v2/assets/",
 ];

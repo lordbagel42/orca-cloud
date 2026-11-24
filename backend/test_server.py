@@ -239,6 +239,104 @@ class BackendServerTest(unittest.TestCase):
         status, _ = http_json(f"{self.base}/v2/assets/BBL/..%2Fserver.py")
         self.assertEqual(status, 404)
 
+    def test_staged_meshes_dedup_and_zero_upload_slice(self):
+        stl = make_cube_stl(0.0, 0.0, 20.0)
+        # Stage mesh once
+        status, staged1 = http_json(f"{self.base}/v2/meshes", "POST", stl, "model/stl")
+        self.assertEqual(status, 201, msg=staged1)
+        self.assertFalse(staged1["deduplicated"])
+        mesh_id = staged1["mesh_id"]
+        self.assertEqual(len(mesh_id), 64)
+        self.assertEqual(staged1["dimensions_mm"], [20.0, 20.0, 20.0])
+
+        # Second upload deduplicates
+        status, staged2 = http_json(f"{self.base}/v2/meshes", "POST", stl, "model/stl")
+        self.assertEqual(status, 201)
+        self.assertTrue(staged2["deduplicated"])
+        self.assertEqual(staged2["mesh_id"], mesh_id)
+
+        # Create configuration
+        cfg_req = {
+            "printer": {"profile": {"vendor": "BBL", "name": "Bambu Lab A1 mini 0.4 nozzle"}},
+            "process": {"profile": {"vendor": "BBL", "name": "0.20mm Standard @BBL A1M"}},
+            "filament": {"profile": {"vendor": "BBL", "name": "Generic PLA @BBL A1M"}},
+            "bed_type": "Textured PEI Plate",
+            "placement": "preserve_xy",
+        }
+        status, cfg = http_json(
+            f"{self.base}/v2/configurations",
+            "POST",
+            json.dumps(cfg_req).encode(),
+            "application/json",
+        )
+        self.assertEqual(status, 201, msg=cfg)
+        cfg_id = cfg["id"]
+
+        # Unknown mesh returns 404 with missing_mesh_id
+        missing_id = "0" * 64
+        status, err = http_json(
+            f"{self.base}/v2/jobs?configuration={cfg_id}",
+            "POST",
+            json.dumps({"objects": [{"mesh_id": missing_id, "position": [90, 90, 0]}]}).encode(),
+            "application/json",
+        )
+        self.assertEqual(status, 404)
+        self.assertEqual(err.get("missing_mesh_id"), missing_id)
+
+        # Zero-upload single-object JSON slice (fast STL transform path)
+        status, job = http_json(
+            f"{self.base}/v2/jobs?configuration={cfg_id}",
+            "POST",
+            json.dumps(
+                {
+                    "objects": [
+                        {
+                            "mesh_id": mesh_id,
+                            "name": "cube",
+                            "position": [90.0, 90.0, 0.0],
+                            "rotation": [0.0, 0.0, 45.0],
+                            "scale": [1.0, 1.0, 1.0],
+                            "filament_index": 0,
+                        }
+                    ]
+                }
+            ).encode(),
+            "application/json",
+        )
+        self.assertEqual(status, 202, msg=job)
+        job_id = job["id"]
+        for _ in range(240):
+            status, job = http_json(f"{self.base}/v1/jobs/{job_id}")
+            if job["status"] in ("succeeded", "failed"):
+                break
+            time.sleep(0.25)
+        self.assertEqual(job["status"], "succeeded", msg=job.get("error"))
+        self.assertGreater(job["output_bytes"], 1000)
+
+        # Zero-upload multi-object JSON slice (3MF assembly path)
+        status, job2 = http_json(
+            f"{self.base}/v2/jobs?configuration={cfg_id}",
+            "POST",
+            json.dumps(
+                {
+                    "objects": [
+                        {"mesh_id": mesh_id, "name": "cube_a", "position": [65.0, 90.0, 0.0], "rotation": [0, 0, 0], "scale": [1, 1, 1], "filament_index": 0},
+                        {"mesh_id": mesh_id, "name": "cube_b", "position": [115.0, 90.0, 0.0], "rotation": [0, 0, 0], "scale": [0.8, 0.8, 1], "filament_index": 0},
+                    ]
+                }
+            ).encode(),
+            "application/json",
+        )
+        self.assertEqual(status, 202, msg=job2)
+        job2_id = job2["id"]
+        for _ in range(240):
+            status, job2 = http_json(f"{self.base}/v1/jobs/{job2_id}")
+            if job2["status"] in ("succeeded", "failed"):
+                break
+            time.sleep(0.25)
+        self.assertEqual(job2["status"], "succeeded", msg=job2.get("error"))
+        self.assertGreater(job2["output_bytes"], 1000)
+
 
 if __name__ == "__main__":
     unittest.main()
