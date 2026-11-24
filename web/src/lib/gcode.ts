@@ -164,6 +164,8 @@ export function parseGcode(text: string): ParsedGcode {
   let minTemp = Infinity, maxTemp = 0;
   let minX = Infinity, minY = Infinity, minZ = Infinity;
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  let modelMinX = Infinity, modelMinY = Infinity, modelMinZ = Infinity;
+  let modelMaxX = -Infinity, modelMaxY = -Infinity, modelMaxZ = -Infinity;
 
   const filamentArea = Math.PI * (1.75 / 2) * (1.75 / 2); // ~2.4053 mm²
 
@@ -256,6 +258,14 @@ export function parseGcode(text: string): ParsedGcode {
       maxX = Math.max(maxX, sx, ex);
       maxY = Math.max(maxY, sy, ey);
       maxZ = Math.max(maxZ, sz, ez);
+      if (feat !== "Custom" && feat !== "Unknown") {
+        modelMinX = Math.min(modelMinX, sx, ex);
+        modelMinY = Math.min(modelMinY, sy, ey);
+        modelMinZ = Math.min(modelMinZ, sz, ez);
+        modelMaxX = Math.max(modelMaxX, sx, ex);
+        modelMaxY = Math.max(modelMaxY, sy, ey);
+        modelMaxZ = Math.max(modelMaxZ, sz, ez);
+      }
     }
   };
 
@@ -509,8 +519,16 @@ export function parseGcode(text: string): ParsedGcode {
     },
     stats,
     bounds: {
-      min: [Number.isFinite(minX) ? minX : 0, Number.isFinite(minY) ? minY : 0, Number.isFinite(minZ) ? minZ : 0],
-      max: [Number.isFinite(maxX) ? maxX : 20, Number.isFinite(maxY) ? maxY : 20, Number.isFinite(maxZ) ? maxZ : 20],
+      min: [
+        Number.isFinite(modelMinX) ? modelMinX : Number.isFinite(minX) ? minX : 0,
+        Number.isFinite(modelMinY) ? modelMinY : Number.isFinite(minY) ? minY : 0,
+        Number.isFinite(modelMinZ) ? modelMinZ : Number.isFinite(minZ) ? minZ : 0,
+      ],
+      max: [
+        Number.isFinite(modelMaxX) ? modelMaxX : Number.isFinite(maxX) ? maxX : 20,
+        Number.isFinite(modelMaxY) ? modelMaxY : Number.isFinite(maxY) ? maxY : 20,
+        Number.isFinite(modelMaxZ) ? modelMaxZ : Number.isFinite(maxZ) ? maxZ : 20,
+      ],
     },
   };
 }

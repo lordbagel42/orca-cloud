@@ -10,6 +10,7 @@ import {
 } from "./geometry";
 import { parseGcode } from "./gcode";
 import { generateCalibrationModel } from "./calibration";
+import { buildVGCodeVertexStream } from "./vgcodeRenderer";
 import { exportPlateTo3MF } from "./threemf";
 import type { Plate } from "../types";
 
@@ -169,5 +170,49 @@ describe("calibration & 3mf", () => {
     const zipBytes = exportPlateTo3MF(plate);
     expect(zipBytes[0]).toBe(0x50); // 'P'
     expect(zipBytes[1]).toBe(0x4b); // 'K'
+  });
+});
+
+describe("libvgcode volumetric vertex stream", () => {
+  it("encodes connected joints, half-height Z offset, 90deg miter angles, and travel separation", () => {
+    const sample = [
+      "; CHANGE_LAYER",
+      "; Z_HEIGHT: 0.2",
+      "; LAYER_HEIGHT: 0.2",
+      "; LINE_WIDTH: 0.44",
+      "; FEATURE: Outer wall",
+      "G1 X10 Y10 Z0.2 F3000",
+      "G1 X20 Y10 E0.5",
+      "G1 X20 Y20 E0.5",
+      "G1 X30 Y20 E0.5",
+      "G0 X40 Y40 F9000",
+    ].join("\n");
+
+    const parsed = parseGcode(sample);
+    const stream = buildVGCodeVertexStream(parsed);
+    // Seg 0 = initial travel (2 verts), Segs 1..3 = 3 chained outer-wall extrusions (4 verts), Seg 4 = final travel (2 verts) => 8 verts
+    expect(stream.vertexCount).toBe(8);
+    expect(stream.segmentIsTravel[0]).toBe(1);
+    expect(stream.segmentIsTravel[1]).toBe(0);
+    expect(stream.segmentIsTravel[4]).toBe(1);
+
+    const e0 = stream.segmentVertexStart[1];
+    // Extrusion vertices pushed down by 0.5 * layerHeight (0.2 - 0.1 = 0.1)
+    expect(stream.positions[e0 * 4 + 2]).toBeCloseTo(0.1, 4);
+    // Endpoint e0 is NOT a joint (w = 0.0), interior corners e0+1 & e0+2 ARE joints (w = 0.5)
+    expect(stream.positions[e0 * 4 + 3]).toBeCloseTo(0.0, 4);
+    expect(stream.positions[(e0 + 1) * 4 + 3]).toBeCloseTo(0.5, 4);
+    expect(stream.positions[(e0 + 2) * 4 + 3]).toBeCloseTo(0.5, 4);
+    expect(stream.positions[(e0 + 3) * 4 + 3]).toBeCloseTo(0.0, 4);
+
+    // Corner e0+1 turns +90 deg (+X -> +Y => +pi/2), corner e0+2 turns -90 deg (+Y -> +X => -pi/2)
+    expect(stream.heightsWidthsAngles[(e0 + 1) * 4 + 0]).toBeCloseTo(0.2, 4);
+    expect(stream.heightsWidthsAngles[(e0 + 1) * 4 + 1]).toBeCloseTo(0.44, 4);
+    expect(stream.heightsWidthsAngles[(e0 + 1) * 4 + 2]).toBeCloseTo(Math.PI / 2, 4);
+    expect(stream.heightsWidthsAngles[(e0 + 2) * 4 + 2]).toBeCloseTo(-Math.PI / 2, 4);
+
+    // Travel move stays at unshifted Z (0.2)
+    const travelStartVert = stream.segmentVertexStart[4];
+    expect(stream.positions[travelStartVert * 4 + 2]).toBeCloseTo(0.2, 4);
   });
 });
