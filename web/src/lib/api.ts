@@ -40,26 +40,46 @@ function urlFor(path: string): string {
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+const inFlightGets = new Map<string, Promise<unknown>>();
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(urlFor(path), {
-    ...init,
-    headers: buildHeaders(init?.headers as Record<string, string> | undefined),
-  });
-  const text = await resp.text();
-  let data: unknown = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { error: text || `HTTP ${resp.status}` };
+  const method = (init?.method || "GET").toUpperCase();
+  const fullUrl = urlFor(path);
+  const canDedupe = method === "GET" && !init?.signal && !init?.body;
+  if (canDedupe) {
+    const existing = inFlightGets.get(fullUrl);
+    if (existing) return existing as Promise<T>;
   }
-  if (!resp.ok) {
-    const errObj = data as { error?: string; issues?: Array<{ message: string; field?: string }> } | null;
-    const detail = errObj?.issues?.length
-      ? `${errObj.error || "Validation error"}: ${errObj.issues.map((i) => i.message).join("; ")}`
-      : errObj?.error || `Request failed (${resp.status})`;
-    throw new Error(detail);
+
+  const run = (async () => {
+    const resp = await fetch(fullUrl, {
+      ...init,
+      headers: buildHeaders(init?.headers as Record<string, string> | undefined),
+    });
+    const text = await resp.text();
+    let data: unknown = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { error: text || `HTTP ${resp.status}` };
+    }
+    if (!resp.ok) {
+      const errObj = data as { error?: string; issues?: Array<{ message: string; field?: string }> } | null;
+      const detail = errObj?.issues?.length
+        ? `${errObj.error || "Validation error"}: ${errObj.issues.map((i) => i.message).join("; ")}`
+        : errObj?.error || `Request failed (${resp.status})`;
+      throw new Error(detail);
+    }
+    return data as T;
+  })();
+
+  if (canDedupe) {
+    inFlightGets.set(fullUrl, run);
+    run.finally(() => {
+      if (inFlightGets.get(fullUrl) === run) inFlightGets.delete(fullUrl);
+    });
   }
-  return data as T;
+  return run;
 }
 
 export async function getHealth(): Promise<BackendHealth> {

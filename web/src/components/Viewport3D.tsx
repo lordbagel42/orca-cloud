@@ -852,7 +852,7 @@ export function Viewport3D({
     };
   }, []);
 
-  // Load official 3D hotend STL mesh whenever printer model changes
+  // Defer official 3D hotend STL mesh until Preview tab is opened
   useEffect(() => {
     let cancelled = false;
     const url = ws.machineModel?.hotend_model_url;
@@ -860,13 +860,14 @@ export function Viewport3D({
       hotendGeomRef.current = null;
       return;
     }
+    if (ws.tab !== "preview") return;
     loadPrinterAssetSTL(url).then((geom) => {
       if (!cancelled) hotendGeomRef.current = geom;
     });
     return () => {
       cancelled = true;
     };
-  }, [ws.machineModel?.hotend_model_url]);
+  }, [ws.machineModel?.hotend_model_url, ws.tab]);
 
   // Rebuild Printer Build Plate (official STL bed model + official SVG silkscreen + exclusion area + volume cage)
   useEffect(() => {
