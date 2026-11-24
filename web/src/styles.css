@@ -813,6 +813,43 @@ button:disabled {
   color: var(--accent-text);
 }
 
+.spacemouse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sm-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  opacity: 0.55;
+}
+
+.sm-dot.connected {
+  background: #22c55e;
+  opacity: 1;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.75);
+}
+
+.spacemouse-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 242px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: rgba(20, 22, 27, 0.98);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 60;
+}
+
 /* Empty Stage Dropzone Callout (sits cleanly beneath the Prepare toolbar, never colliding with bottom Camera HUD) */
 .empty-stage-hint {
   position: absolute;

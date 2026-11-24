@@ -15,6 +15,14 @@ import {
 import { INDEX_TO_FEATURE } from "../lib/gcode";
 import { loadPrinterAssetSTL, loadPrinterAssetSVG } from "../lib/printerAssets";
 import { VGCodeRenderer } from "../lib/vgcodeRenderer";
+import {
+  applySpaceMouseToCamera,
+  loadSpaceMousePrefs,
+  saveSpaceMousePrefs,
+  SpaceMouseController,
+  type SpaceMousePrefs,
+  type SpaceMouseStatus,
+} from "../lib/spacemouse";
 
 function createBedTexture(
   width: number,
@@ -277,6 +285,18 @@ export function Viewport3D({
   const [dragOver, setDragOver] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
   const [submenu, setSubmenu] = useState<SubmenuState | null>(null);
+  const [smStatus, setSmStatus] = useState<SpaceMouseStatus>({
+    connected: false,
+    source: null,
+    deviceName: null,
+    webHidSupported: typeof navigator !== "undefined" && "hid" in navigator,
+  });
+  const [smPrefs, setSmPrefs] = useState<SpaceMousePrefs>(() => loadSpaceMousePrefs());
+  const [smPopoverOpen, setSmPopoverOpen] = useState(false);
+  const smControllerRef = useRef<SpaceMouseController | null>(null);
+  const smPrefsRef = useRef<SpaceMousePrefs>(smPrefs);
+  smPrefsRef.current = smPrefs;
+  const smPopRef = useRef<HTMLDivElement>(null);
 
   // Refs to Three.js scene objects
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -666,16 +686,42 @@ export function Viewport3D({
     window.addEventListener("pointercancel", onPointerCancel);
     renderer.domElement.addEventListener("contextmenu", onContextMenu);
 
+    // 6-DOF 3Dconnexion SpaceMouse controller (WebHID + automatic Gamepad API fallback)
+    const spaceMouse = new SpaceMouseController();
+    smControllerRef.current = spaceMouse;
+    setSmStatus(spaceMouse.getStatus());
+    const unsubSmStatus = spaceMouse.onStatusChange((st) => {
+      setSmStatus(st);
+      if (st.connected && st.deviceName) {
+        wsRef.current.notify(`Connected ${st.deviceName} (${st.source === "webhid" ? "WebHID" : "Gamepad"})`, "success");
+      }
+    });
+    const unsubSmBtn = spaceMouse.onButtonPress((btnIdx) => {
+      // Standard 3Dconnexion 2-button layout: Button 0 = Fit view, Button 1 = Isometric reset
+      window.dispatchEvent(new CustomEvent("orca-camera-preset", { detail: btnIdx === 0 ? "fit" : "iso" }));
+    });
+
     let rafId = 0;
-    const animate = () => {
+    let lastTime = performance.now();
+    const animate = (now = performance.now()) => {
       rafId = requestAnimationFrame(animate);
-      controls.update();
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      const smAxes = spaceMouse.readAxes();
+      const movedBySm = applySpaceMouseToCamera(smAxes, camera, controls, dt, smPrefsRef.current);
+      if (!movedBySm) {
+        controls.update();
+      }
       renderer.render(scene, camera);
     };
     animate();
 
     return () => {
       cancelAnimationFrame(rafId);
+      unsubSmStatus();
+      unsubSmBtn();
+      spaceMouse.dispose();
+      smControllerRef.current = null;
       ro.disconnect();
       if (vgRendererRef.current) {
         vgRendererRef.current.renderer.dispose();
@@ -1272,6 +1318,47 @@ export function Viewport3D({
     return () => window.removeEventListener("orca-camera-preset", onCam);
   }, [setCameraPreset]);
 
+  // Dismiss SpaceMouse popover on outside click
+  useEffect(() => {
+    if (!smPopoverOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (smPopRef.current && !smPopRef.current.contains(e.target as Node)) {
+        setSmPopoverOpen(false);
+      }
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [smPopoverOpen]);
+
+  const handleSpaceMouseClick = async () => {
+    if (smStatus.connected) {
+      setSmPopoverOpen((v) => !v);
+      return;
+    }
+    const ctrl = smControllerRef.current;
+    if (!ctrl) return;
+    if (!smStatus.webHidSupported) {
+      setSmPopoverOpen((v) => !v);
+      return;
+    }
+    try {
+      const next = await ctrl.connect();
+      if (!next.connected) {
+        ws.notify("No SpaceMouse selected", "info");
+      }
+    } catch (err) {
+      ws.notify(err instanceof Error ? err.message : "Could not connect SpaceMouse", "error");
+    }
+  };
+
+  const updateSmPrefs = (patch: Partial<SpaceMousePrefs>) => {
+    setSmPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      saveSpaceMousePrefs(next);
+      return next;
+    });
+  };
+
   // Dismiss context menu on outside click or Escape
   useEffect(() => {
     if (!ctxMenu) return;
@@ -1388,6 +1475,101 @@ export function Viewport3D({
             Wire
           </button>
         )}
+        <div ref={smPopRef} style={{ position: "relative", display: "inline-flex" }}>
+          <button
+            className={`camera-btn spacemouse-btn ${smStatus.connected ? "active" : ""}`}
+            aria-label={
+              smStatus.connected
+                ? `3D SpaceMouse connected (${smStatus.deviceName}) — open settings`
+                : "3D SpaceMouse — connect 3Dconnexion controller"
+            }
+            title={
+              smStatus.connected
+                ? `${smStatus.deviceName} (${smStatus.source === "webhid" ? "WebHID" : "Gamepad"})`
+                : "Connect 3Dconnexion SpaceMouse (WebHID / Gamepad)"
+            }
+            onClick={handleSpaceMouseClick}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setSmPopoverOpen((v) => !v);
+            }}
+          >
+            <span className={`sm-dot ${smStatus.connected ? "connected" : ""}`} aria-hidden="true" />
+            3D
+          </button>
+
+          {smPopoverOpen && (
+            <div className="spacemouse-popover" role="dialog" aria-label="SpaceMouse settings">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <strong style={{ fontSize: 12 }}>3Dconnexion SpaceMouse</strong>
+                <span className="mono" style={{ fontSize: 10.5, color: smStatus.connected ? "var(--accent-text)" : "var(--text-muted)" }}>
+                  {smStatus.connected ? (smStatus.source === "webhid" ? "WebHID" : "Gamepad") : "Disconnected"}
+                </span>
+              </div>
+              {smStatus.deviceName && (
+                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{smStatus.deviceName}</div>
+              )}
+              {!smStatus.connected && !smStatus.webHidSupported && (
+                <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  WebHID requires Chrome/Edge. Move your SpaceMouse cap to auto-detect via Gamepad API.
+                </div>
+              )}
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Sensitivity</span>
+                  <span className="mono">{smPrefs.sensitivity.toFixed(2)}×</span>
+                </div>
+                <input
+                  type="range"
+                  min={0.25}
+                  max={2.5}
+                  step={0.05}
+                  value={smPrefs.sensitivity}
+                  onChange={(e) => updateSmPrefs({ sensitivity: Number(e.target.value) })}
+                  style={{ accentColor: "var(--accent)" }}
+                />
+              </label>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={smPrefs.invertAxes}
+                  onChange={(e) => updateSmPrefs({ invertAxes: e.target.checked })}
+                />
+                <span>Camera-centric mode (invert axes)</span>
+              </label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {smStatus.connected && smStatus.source === "webhid" ? (
+                  <button
+                    className="btn btn-sm"
+                    style={{ flex: 1 }}
+                    onClick={async () => {
+                      await smControllerRef.current?.disconnect();
+                      setSmPopoverOpen(false);
+                      ws.notify("Disconnected SpaceMouse", "info");
+                    }}
+                  >
+                    Disconnect
+                  </button>
+                ) : smStatus.webHidSupported ? (
+                  <button
+                    className="btn btn-sm btn-primary"
+                    style={{ flex: 1 }}
+                    onClick={async () => {
+                      try {
+                        await smControllerRef.current?.connect();
+                      } catch (err) {
+                        ws.notify(err instanceof Error ? err.message : "Could not connect SpaceMouse", "error");
+                      }
+                    }}
+                  >
+                    Connect via WebHID
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Full OrcaSlicer Desktop Right-Click Context Menu (Object & Build Plate) */}

@@ -11,6 +11,7 @@ import {
 import { parseGcode } from "./gcode";
 import { generateCalibrationModel } from "./calibration";
 import { buildVGCodeVertexStream } from "./vgcodeRenderer";
+import { applyDeadzoneCurve, parseSpaceMouseReport } from "./spacemouse";
 import { exportPlateTo3MF } from "./threemf";
 import type { Plate } from "../types";
 
@@ -214,5 +215,54 @@ describe("libvgcode volumetric vertex stream", () => {
     // Travel move stays at unshifted Z (0.2)
     const travelStartVert = stream.segmentVertexStart[4];
     expect(stream.positions[travelStartVert * 4 + 2]).toBeCloseTo(0.2, 4);
+  });
+
+  it("parses classic 6-byte and combined 12-byte 3Dconnexion SpaceMouse HID packets", () => {
+    // Classic 6-byte translation packet (reportId 1)
+    const transBuf = new ArrayBuffer(6);
+    const transView = new DataView(transBuf);
+    transView.setInt16(0, 175, true);
+    transView.setInt16(2, -350, true);
+    transView.setInt16(4, 0, true);
+    const tParsed = parseSpaceMouseReport(1, transView);
+    expect(tParsed.translation?.[0]).toBeCloseTo(0.5, 4);
+    expect(tParsed.translation?.[1]).toBeCloseTo(-1.0, 4);
+    expect(tParsed.translation?.[2]).toBeCloseTo(0.0, 4);
+    expect(tParsed.rotation).toBeUndefined();
+
+    // Classic 6-byte rotation packet (reportId 2)
+    const rotBuf = new ArrayBuffer(6);
+    const rotView = new DataView(rotBuf);
+    rotView.setInt16(0, -175, true);
+    rotView.setInt16(2, 70, true);
+    rotView.setInt16(4, 350, true);
+    const rParsed = parseSpaceMouseReport(2, rotView);
+    expect(rParsed.rotation?.[0]).toBeCloseTo(-0.5, 4);
+    expect(rParsed.rotation?.[1]).toBeCloseTo(0.2, 4);
+    expect(rParsed.rotation?.[2]).toBeCloseTo(1.0, 4);
+
+    // Modern 12-byte combined 6-DOF packet (Universal Receiver / Wireless BT / Enterprise)
+    const comboBuf = new ArrayBuffer(12);
+    const comboView = new DataView(comboBuf);
+    comboView.setInt16(0, 350, true);
+    comboView.setInt16(2, 0, true);
+    comboView.setInt16(4, -175, true);
+    comboView.setInt16(6, 175, true);
+    comboView.setInt16(8, 0, true);
+    comboView.setInt16(10, -350, true);
+    const cParsed = parseSpaceMouseReport(1, comboView);
+    expect(cParsed.translation).toEqual([1, 0, -0.5]);
+    expect(cParsed.rotation).toEqual([0.5, 0, -1]);
+
+    // Button bitmask packet (reportId 3)
+    const btnBuf = new ArrayBuffer(2);
+    new DataView(btnBuf).setUint16(0, 0b10, true);
+    expect(parseSpaceMouseReport(3, new DataView(btnBuf)).buttons).toBe(2);
+
+    // Deadzone suppresses noise and preserves full-deflection polarity
+    expect(applyDeadzoneCurve(0.03)).toBe(0);
+    expect(applyDeadzoneCurve(-0.04)).toBe(0);
+    expect(applyDeadzoneCurve(1)).toBeCloseTo(1, 5);
+    expect(applyDeadzoneCurve(-1)).toBeCloseTo(-1, 5);
   });
 });
