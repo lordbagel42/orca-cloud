@@ -4,6 +4,10 @@ import type { WorkspaceAPI } from "../store/useWorkspace";
 export function PlateBar({ ws }: { ws: WorkspaceAPI }) {
   const [bw, bd, bh] = ws.buildVolume;
   const totalTris = ws.activePlate.objects.reduce((s, o) => s + o.geometry.triangleCount, 0);
+  const visibleObjs = ws.activePlate.objects.filter((o) => o.visible);
+  const syncingCount = visibleObjs.filter((o) => o.meshSyncState === "syncing").length;
+  const syncedCount = visibleObjs.filter((o) => o.meshSyncState === "synced").length;
+  const allSynced = visibleObjs.length > 0 && syncedCount === visibleObjs.length;
 
   return (
     <footer className="plate-bar">
@@ -54,6 +58,21 @@ export function PlateBar({ ws }: { ws: WorkspaceAPI }) {
       </div>
 
       <div className="plate-bar-meta">
+        {ws.health?.capabilities?.staged_meshes && visibleObjs.length > 0 && (
+          <span
+            className={`mesh-sync-badge ${syncingCount > 0 ? "syncing" : allSynced ? "synced" : ""}`}
+            title={
+              syncingCount > 0
+                ? "Pre-uploading meshes to native OrcaSlicer in the background"
+                : allSynced
+                ? "All models pre-staged in native OrcaSlicer (zero upload wait on Slice)"
+                : "Models stored locally"
+            }
+          >
+            <span className="mesh-sync-dot" />
+            {syncingCount > 0 ? "Syncing…" : allSynced ? "Pre-staged" : "Local"}
+          </span>
+        )}
         <span className="mono">
           Bed: {bw}×{bd}×{bh} mm
         </span>

@@ -127,6 +127,9 @@ export interface SceneObject {
   /** Per-triangle filament slot override: 0 = object default, 1..N = slot index+1 */
   paintColor?: Uint8Array;
   variableLayers?: VariableLayerPoint[];
+  /** Content-addressed SHA-256 mesh ID pre-staged on the OrcaSlicer backend */
+  remoteMeshId?: string;
+  meshSyncState?: "syncing" | "synced" | "local";
 }
 
 export interface Plate {
@@ -361,6 +364,7 @@ export interface BackendHealth {
     multi_filament?: boolean;
     multi_plate?: boolean;
     preserve_xy?: boolean;
+    staged_meshes?: boolean;
     mesh_repair?: boolean;
     mesh_auto_orient?: boolean;
     mesh_inspect?: boolean;

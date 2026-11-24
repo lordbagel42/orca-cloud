@@ -153,6 +153,63 @@ export async function createConfiguration(
   });
 }
 
+export interface StagedMeshResult {
+  mesh_id: string;
+  format: "stl";
+  size_bytes: number;
+  dimensions_mm: [number, number, number];
+  deduplicated: boolean;
+}
+
+export async function stageMeshSTL(stlBytes: Uint8Array): Promise<StagedMeshResult> {
+  const body = new Blob([stlBytes.buffer as ArrayBuffer], { type: "model/stl" });
+  return fetchJson<StagedMeshResult>("/v2/meshes", {
+    method: "POST",
+    headers: { "Content-Type": "model/stl" },
+    body,
+  });
+}
+
+export interface StagedSliceObjectSpec {
+  mesh_id: string;
+  name: string;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
+  filament_index: number;
+  overrides?: OrcaSettingsMap;
+}
+
+/**
+ * Submit a zero-upload slice job referencing meshes already pre-staged via `/v2/meshes`.
+ * Returns `null` if the server reports 404 (cache evicted / restarted) so callers can fall back seamlessly.
+ */
+export async function submitStagedSliceJob(
+  configurationId: string,
+  objects: StagedSliceObjectSpec[]
+): Promise<SliceJobRecord | null> {
+  const resp = await fetch(urlFor(`/v2/jobs?configuration=${encodeURIComponent(configurationId)}`), {
+    method: "POST",
+    headers: buildHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ objects }),
+  });
+  if (resp.status === 404) {
+    return null;
+  }
+  const text = await resp.text();
+  let data: unknown = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { error: text || `HTTP ${resp.status}` };
+  }
+  if (!resp.ok) {
+    const errObj = data as { error?: string } | null;
+    throw new Error(errObj?.error || `Request failed (${resp.status})`);
+  }
+  return data as SliceJobRecord;
+}
+
 export async function submitSliceJob(
   configurationId: string,
   payloadBytes: Uint8Array,

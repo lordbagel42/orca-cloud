@@ -32,7 +32,9 @@ import {
   nativeMeshAutoOrient,
   nativeMeshRepair,
   setApiConfig,
+  stageMeshSTL,
   submitSliceJob,
+  submitStagedSliceJob,
 } from "../lib/api";
 import {
   arrangeObjectsOnBed,
@@ -399,12 +401,111 @@ export function useWorkspace() {
     return () => { cancelled = true; };
   }, [process]);
 
+  // Eager background STL staging into native OrcaSlicer (/v2/meshes) keyed by geometry positions array
+  const stagedMeshPromisesRef = useRef<WeakMap<Float32Array, Promise<string | null>>>(new WeakMap());
+  const stagedMeshIdsRef = useRef<WeakMap<Float32Array, string>>(new WeakMap());
+
+  const ensureGeometryStaged = useCallback(
+    (geometry: GeometryData): Promise<string | null> => {
+      if (!health?.capabilities?.staged_meshes) return Promise.resolve(null);
+      const pos = geometry.positions;
+      const existingId = stagedMeshIdsRef.current.get(pos);
+      if (existingId) return Promise.resolve(existingId);
+      const inFlight = stagedMeshPromisesRef.current.get(pos);
+      if (inFlight) return inFlight;
+
+      setPlates((prev) =>
+        prev.map((p) =>
+          p.objects.some((o) => o.geometry.positions === pos && o.meshSyncState !== "syncing")
+            ? {
+                ...p,
+                objects: p.objects.map((o) =>
+                  o.geometry.positions === pos ? { ...o, meshSyncState: "syncing" } : o
+                ),
+              }
+            : p
+        )
+      );
+
+      const promise = (async (): Promise<string | null> => {
+        try {
+          const stlBytes = exportBinarySTL(pos);
+          const res = await stageMeshSTL(stlBytes);
+          stagedMeshIdsRef.current.set(pos, res.mesh_id);
+          setPlates((prev) =>
+            prev.map((p) =>
+              p.objects.some((o) => o.geometry.positions === pos)
+                ? {
+                    ...p,
+                    objects: p.objects.map((o) =>
+                      o.geometry.positions === pos
+                        ? { ...o, remoteMeshId: res.mesh_id, meshSyncState: "synced" }
+                        : o
+                    ),
+                  }
+                : p
+            )
+          );
+          return res.mesh_id;
+        } catch {
+          stagedMeshPromisesRef.current.delete(pos);
+          setPlates((prev) =>
+            prev.map((p) =>
+              p.objects.some((o) => o.geometry.positions === pos)
+                ? {
+                    ...p,
+                    objects: p.objects.map((o) =>
+                      o.geometry.positions === pos ? { ...o, meshSyncState: "local" } : o
+                    ),
+                  }
+                : p
+            )
+          );
+          return null;
+        }
+      })();
+
+      stagedMeshPromisesRef.current.set(pos, promise);
+      return promise;
+    },
+    [health?.capabilities?.staged_meshes]
+  );
+
+  // Automatically stage any newly imported, added, repaired, split, or restored geometry in the background
+  useEffect(() => {
+    if (!health?.capabilities?.staged_meshes) return;
+    for (const plate of plates) {
+      for (const obj of plate.objects) {
+        const pos = obj.geometry.positions;
+        if (!stagedMeshIdsRef.current.has(pos) && !stagedMeshPromisesRef.current.has(pos)) {
+          void ensureGeometryStaged(obj.geometry);
+        } else {
+          const knownId = stagedMeshIdsRef.current.get(pos);
+          if (knownId && obj.remoteMeshId !== knownId) {
+            setPlates((prev) =>
+              prev.map((p) => ({
+                ...p,
+                objects: p.objects.map((o) =>
+                  o.geometry.positions === pos
+                    ? { ...o, remoteMeshId: knownId, meshSyncState: "synced" }
+                    : o
+                ),
+              }))
+            );
+          }
+        }
+      }
+    }
+  }, [plates, health?.capabilities?.staged_meshes, ensureGeometryStaged]);
+
   // Update backend connection settings
   const updateBackendConnection = useCallback((url: string, token: string) => {
     const clean = url.trim() || "/api";
     setBackendUrl(clean);
     setBearerToken(token);
     setApiConfig({ baseUrl: clean, bearerToken: token });
+    stagedMeshIdsRef.current = new WeakMap();
+    stagedMeshPromisesRef.current = new WeakMap();
     setTimeout(() => refreshHealth(), 50);
   }, [refreshHealth]);
 
@@ -978,14 +1079,56 @@ export function useWorkspace() {
 
       const cfg = await createConfiguration(configPayload);
 
-      // Prefer 3MF whenever backend supports it and we have multi-object/modifiers/paint/multi-filament,
-      // otherwise use 3MF when supported or clean STL!
-      const use3mf = Boolean(health?.capabilities?.threemf) && hasPerObjectFeatures;
-      setSliceStatusText(use3mf ? "Packaging 3MF plate..." : "Exporting plate geometry...");
-      const payloadBytes = use3mf ? exportPlateTo3MF(activePlate) : exportPlateToBinarySTL(visible);
+      // Zero-upload fast path: if meshes were already eagerly staged on import/add and there are no
+      // painted faces or sub-parts requiring custom 3MF attributes, submit a tiny JSON job referencing
+      // the pre-staged mesh IDs (automatically falling back to direct STL/3MF upload on 404 cache miss).
+      const hasComplex3mfOnly = visible.some(
+        (o) =>
+          o.subParts.length > 0 ||
+          Boolean(o.paintSupport) ||
+          Boolean(o.paintSeam) ||
+          Boolean(o.paintColor)
+      );
 
-      setSliceStatusText("Uploading to native OrcaSlicer...");
-      let job = await submitSliceJob(cfg.id, payloadBytes, use3mf ? "3mf" : "stl");
+      let job: SliceJobRecord | null = null;
+      if (health?.capabilities?.staged_meshes && !hasComplex3mfOnly) {
+        const needsAwait = visible.some((o) => !stagedMeshIdsRef.current.has(o.geometry.positions));
+        if (needsAwait) {
+          setSliceStatusText("Finishing background sync...");
+        }
+        const meshIds = await Promise.all(visible.map((o) => ensureGeometryStaged(o.geometry)));
+        if (meshIds.every((id): id is string => Boolean(id))) {
+          setSliceStatusText("Starting native OrcaSlicer...");
+          job = await submitStagedSliceJob(
+            cfg.id,
+            visible.map((o, idx) => ({
+              mesh_id: meshIds[idx],
+              name: o.name,
+              position: o.position,
+              rotation: o.rotation,
+              scale: o.scale,
+              filament_index: o.filamentIndex,
+              ...(Object.keys(o.overrides).length ? { overrides: o.overrides } : {}),
+            }))
+          );
+          if (!job) {
+            // Backend cache evicted or restarted; clear stale IDs and fall back cleanly
+            for (const o of visible) {
+              stagedMeshIdsRef.current.delete(o.geometry.positions);
+              stagedMeshPromisesRef.current.delete(o.geometry.positions);
+            }
+          }
+        }
+      }
+
+      if (!job) {
+        const use3mf = Boolean(health?.capabilities?.threemf) && hasPerObjectFeatures;
+        setSliceStatusText(use3mf ? "Packaging 3MF plate..." : "Exporting plate geometry...");
+        const payloadBytes = use3mf ? exportPlateTo3MF(activePlate) : exportPlateToBinarySTL(visible);
+
+        setSliceStatusText("Uploading to native OrcaSlicer...");
+        job = await submitSliceJob(cfg.id, payloadBytes, use3mf ? "3mf" : "stl");
+      }
       setCurrentJob(job);
 
       setSliceStatusText("Slicing toolpaths...");
@@ -1034,6 +1177,8 @@ export function useWorkspace() {
     processOverrides,
     bedType,
     health?.capabilities?.threemf,
+    health?.capabilities?.staged_meshes,
+    ensureGeometryStaged,
     notify,
   ]);
 
