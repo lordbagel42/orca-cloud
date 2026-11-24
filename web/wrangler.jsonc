@@ -9,5 +9,11 @@
   },
   "vars": {
     "ORCA_ORIGIN": "https://orca.bagelindustries.com"
-  }
+  },
+  "routes": [
+    {
+      "pattern": "orca.bagelindustries.com/*",
+      "zone_name": "bagelindustries.com"
+    }
+  ]
 }

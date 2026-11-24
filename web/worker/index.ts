@@ -23,22 +23,37 @@ const ALLOWED_PREFIXES = [
   "/v2/assets/",
 ];
 
+function isApiPath(pathname: string): boolean {
+  return ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const origin = (env.ORCA_ORIGIN || "https://orca.bagelindustries.com").replace(/\/+$/, "");
+    const originHost = new URL(origin).hostname;
+
+    // Pass direct native API routes (/healthz, /openapi.json, /v1/*, /v2/*) straight to the origin backend
+    // so existing CLI/Executor clients on orca.bagelindustries.com keep working with their own Bearer auth.
+    if (isApiPath(url.pathname)) {
+      if (url.hostname === originHost) {
+        return fetch(request);
+      }
+      return fetch(`${origin}${url.pathname}${url.search}`, request);
+    }
+
     if (!url.pathname.startsWith("/api/")) {
       return env.ASSETS.fetch(request);
     }
 
     const upstreamPath = url.pathname.slice(4) || "/";
-    if (!ALLOWED_PREFIXES.some((p) => upstreamPath === p || upstreamPath.startsWith(p))) {
+    if (!isApiPath(upstreamPath)) {
       return new Response(JSON.stringify({ error: "Route not allowed" }), {
         status: 404,
         headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
       });
     }
 
-    const origin = (env.ORCA_ORIGIN || "https://orca.bagelindustries.com").replace(/\/+$/, "");
     const targetUrl = `${origin}${upstreamPath}${url.search}`;
 
     const headers = new Headers();
