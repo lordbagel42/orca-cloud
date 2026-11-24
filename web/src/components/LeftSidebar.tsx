@@ -111,24 +111,72 @@ export function LeftSidebar({ ws }: { ws: WorkspaceAPI }) {
           <span className="section-title">
             <Printer size={13} /> Printer
           </span>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span className="mono" style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
+              {Math.round(ws.buildVolume[0])}×{Math.round(ws.buildVolume[1])}×{Math.round(ws.buildVolume[2])}
+            </span>
+            <button
+              className="icon-btn icon-btn-sm"
+              title="Edit printer settings & machine G-code"
+              aria-label="Edit printer settings"
+              onClick={() => setEditingPrinter(true)}
+            >
+              <Settings2 size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* Quick official Bambu Lab printer switcher (A1 mini & P1S) + Browse all 72 vendors */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
           <button
-            className="icon-btn icon-btn-sm"
-            title="Edit printer settings & machine G-code"
-            aria-label="Edit printer settings"
-            onClick={() => setEditingPrinter(true)}
+            className={`btn btn-sm ${ws.printer.name.startsWith("Bambu Lab A1 mini") ? "btn-primary" : ""}`}
+            style={{ height: 24, fontSize: 11 }}
+            onClick={() => ws.setPrinter({ vendor: "BBL", name: "Bambu Lab A1 mini 0.4 nozzle" })}
+            title="Switch to Bambu Lab A1 mini (180×180×180, official bed model & profiles)"
           >
-            <Settings2 size={13} />
+            A1 mini
+          </button>
+          <button
+            className={`btn btn-sm ${ws.printer.name.startsWith("Bambu Lab P1S") ? "btn-primary" : ""}`}
+            style={{ height: 24, fontSize: 11 }}
+            onClick={() => ws.setPrinter({ vendor: "BBL", name: "Bambu Lab P1S 0.4 nozzle" })}
+            title="Switch to Bambu Lab P1S (256×256×250, official bed model & profiles)"
+          >
+            P1S
           </button>
         </div>
 
         <button
           className="profile-trigger"
           onClick={() => setPicker({ kind: "machine" })}
-          title={`${ws.printer.vendor}: ${ws.printer.name}`}
+          title={`${ws.printer.vendor}: ${ws.printer.name} — click to browse all official printers`}
         >
           <span className="profile-trigger-label">{ws.printer.name}</span>
           <ChevronDown size={13} color="var(--text-muted)" />
         </button>
+
+        {/* Official nozzle diameter variants for the active printer model */}
+        {ws.compatibleProfiles && ws.compatibleProfiles.nozzle_variants.length > 1 && (
+          <div className="field-row">
+            <span className="field-label">Nozzle</span>
+            <div style={{ display: "inline-flex", gap: 4 }}>
+              {ws.compatibleProfiles.nozzle_variants.map((nv) => {
+                const active = ws.printer.name === nv.name;
+                return (
+                  <button
+                    key={nv.name}
+                    className={`btn btn-sm mono ${active ? "btn-primary" : ""}`}
+                    style={{ height: 22, padding: "0 7px", fontSize: 10.5 }}
+                    onClick={() => ws.setPrinter({ vendor: nv.vendor, name: nv.name })}
+                    title={nv.name}
+                  >
+                    {nv.nozzle_diameter}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="field-row">
           <span className="field-label">Bed type</span>
@@ -216,14 +264,65 @@ export function LeftSidebar({ ws }: { ws: WorkspaceAPI }) {
                 </div>
               )}
 
+              {ws.compatibleProfiles && ws.compatibleProfiles.filaments.length > 0 ? (
+                <select
+                  className="select"
+                  style={{ height: 26, flex: 1, minWidth: 0, fontSize: 11.5 }}
+                  aria-label={`Filament ${idx + 1} preset`}
+                  value={`${slot.profile.vendor}::${slot.profile.name}`}
+                  onChange={(e) => {
+                    const [vendor, ...rest] = e.target.value.split("::");
+                    const name = rest.join("::");
+                    if (vendor && name) {
+                      ws.updateFilamentSlot(slot.id, { profile: { vendor, name }, overrides: {} });
+                    }
+                  }}
+                >
+                  {!ws.compatibleProfiles.filaments.some(
+                    (f) => f.vendor === slot.profile.vendor && f.name === slot.profile.name
+                  ) && (
+                    <option value={`${slot.profile.vendor}::${slot.profile.name}`}>
+                      {slot.profile.name}
+                    </option>
+                  )}
+                  <optgroup label={`Recommended (${ws.compatibleProfiles.filaments.filter((f) => f.is_recommended).length})`}>
+                    {ws.compatibleProfiles.filaments
+                      .filter((f) => f.is_recommended)
+                      .map((f) => (
+                        <option key={`${f.vendor}::${f.name}`} value={`${f.vendor}::${f.name}`}>
+                          {f.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                  <optgroup label={`All Compatible (${ws.compatibleProfiles.filaments.length})`}>
+                    {ws.compatibleProfiles.filaments
+                      .filter((f) => !f.is_recommended)
+                      .map((f) => (
+                        <option key={`${f.vendor}::${f.name}`} value={`${f.vendor}::${f.name}`}>
+                          {f.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                </select>
+              ) : (
+                <button
+                  className="profile-trigger"
+                  style={{ height: 26, flex: 1, minWidth: 0 }}
+                  onClick={() => setPicker({ kind: "filament", slotId: slot.id })}
+                  title={`${slot.profile.vendor}: ${slot.profile.name}`}
+                >
+                  <span className="profile-trigger-label">{slot.profile.name}</span>
+                  <ChevronDown size={12} color="var(--text-muted)" />
+                </button>
+              )}
+
               <button
-                className="profile-trigger"
-                style={{ height: 26, flex: 1, minWidth: 0 }}
+                className="icon-btn icon-btn-sm"
+                title="Browse all 14,275 official filament profiles"
+                aria-label={`Browse all filaments for slot ${idx + 1}`}
                 onClick={() => setPicker({ kind: "filament", slotId: slot.id })}
-                title={`${slot.profile.vendor}: ${slot.profile.name}`}
               >
-                <span className="profile-trigger-label">{slot.profile.name}</span>
-                <ChevronDown size={12} color="var(--text-muted)" />
+                <Search size={12} />
               </button>
 
               <button
@@ -288,14 +387,55 @@ export function LeftSidebar({ ws }: { ws: WorkspaceAPI }) {
           </div>
         </div>
 
-        <button
-          className="profile-trigger"
-          onClick={() => setPicker({ kind: "process" })}
-          title={`${ws.process.vendor}: ${ws.process.name}`}
-        >
-          <span className="profile-trigger-label">{ws.process.name}</span>
-          <ChevronDown size={13} color="var(--text-muted)" />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {ws.compatibleProfiles && ws.compatibleProfiles.processes.length > 0 ? (
+            <select
+              className="select"
+              style={{ height: 28, flex: 1, minWidth: 0, fontSize: 12 }}
+              aria-label="Compatible process preset"
+              value={`${ws.process.vendor}::${ws.process.name}`}
+              onChange={(e) => {
+                const [vendor, ...rest] = e.target.value.split("::");
+                const name = rest.join("::");
+                if (vendor && name) {
+                  ws.setProcess({ vendor, name });
+                  ws.setProcessOverrides({});
+                }
+              }}
+            >
+              {!ws.compatibleProfiles.processes.some(
+                (p) => p.vendor === ws.process.vendor && p.name === ws.process.name
+              ) && (
+                <option value={`${ws.process.vendor}::${ws.process.name}`}>
+                  {ws.process.name}
+                </option>
+              )}
+              {ws.compatibleProfiles.processes.map((p) => (
+                <option key={`${p.vendor}::${p.name}`} value={`${p.vendor}::${p.name}`}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <button
+              className="profile-trigger"
+              style={{ flex: 1 }}
+              onClick={() => setPicker({ kind: "process" })}
+              title={`${ws.process.vendor}: ${ws.process.name}`}
+            >
+              <span className="profile-trigger-label">{ws.process.name}</span>
+              <ChevronDown size={13} color="var(--text-muted)" />
+            </button>
+          )}
+          <button
+            className="icon-btn icon-btn-sm"
+            title="Browse all official process profiles"
+            aria-label="Browse all process profiles"
+            onClick={() => setPicker({ kind: "process" })}
+          >
+            <Search size={12} />
+          </button>
+        </div>
 
         {/* Global | Objects Toggle */}
         <div className="segmented" role="tablist" aria-label="Settings scope">

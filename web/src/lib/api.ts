@@ -1,6 +1,8 @@
 import type {
   BackendHealth,
   BedType,
+  CompatibleProfilesResponse,
+  MachineModelInfo,
   OrcaSettingsMap,
   ProfileRef,
   ProfileSummary,
@@ -97,6 +99,8 @@ export async function getProfileDetail(params: {
   settings: OrcaSettingsMap;
   build_volume_mm?: [number, number, number];
   printable_area_polygon?: [number, number][];
+  bed_exclude_area_polygon?: [number, number][];
+  machine_model?: MachineModelInfo;
 }> {
   const qs = new URLSearchParams({
     vendor: params.vendor,
@@ -104,6 +108,17 @@ export async function getProfileDetail(params: {
     name: params.name,
   });
   return fetchJson(`/v2/profiles/detail?${qs.toString()}`);
+}
+
+export async function getCompatibleProfiles(params: {
+  vendor: string;
+  machine: string;
+}): Promise<CompatibleProfilesResponse> {
+  const qs = new URLSearchParams({
+    vendor: params.vendor,
+    machine: params.machine,
+  });
+  return fetchJson<CompatibleProfilesResponse>(`/v2/profiles/compatible?${qs.toString()}`);
 }
 
 export interface NativeSettingsCatalog {

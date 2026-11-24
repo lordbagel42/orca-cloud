@@ -291,6 +291,64 @@ export interface SliceJobRecord {
   };
 }
 
+export interface MachineModelInfo {
+  name: string;
+  vendor: string;
+  family: string;
+  model_id: string;
+  bed_model: string | null;
+  bed_texture: string | null;
+  hotend_model: string | null;
+  bed_model_url: string | null;
+  bed_texture_url: string | null;
+  hotend_model_url: string | null;
+  default_bed_type: string;
+  not_support_bed_types: string[];
+  nozzle_diameters: string[];
+  default_materials: string[];
+}
+
+export interface NozzleVariantItem {
+  vendor: string;
+  name: string;
+  nozzle_diameter: string;
+}
+
+export interface CompatibleProcessItem {
+  vendor: string;
+  name: string;
+  layer_height: number;
+  is_default: boolean;
+}
+
+export interface CompatibleFilamentItem {
+  vendor: string;
+  name: string;
+  filament_type: string;
+  filament_vendor: string;
+  nozzle_temp: string;
+  bed_temp: string;
+  is_default: boolean;
+  is_recommended: boolean;
+}
+
+export interface CompatibleProfilesResponse {
+  vendor: string;
+  machine: string;
+  printer_model: string;
+  printer_variant: string;
+  build_volume_mm: [number, number, number];
+  printable_area_polygon: [number, number][];
+  bed_exclude_area_polygon: [number, number][];
+  machine_model: MachineModelInfo;
+  nozzle_variants: NozzleVariantItem[];
+  default_print_profile: string;
+  default_filament_profile: string;
+  settings: OrcaSettingsMap;
+  processes: CompatibleProcessItem[];
+  filaments: CompatibleFilamentItem[];
+}
+
 export interface BackendHealth {
   status: string;
   slicer: string;

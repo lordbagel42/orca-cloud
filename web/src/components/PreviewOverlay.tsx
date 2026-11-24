@@ -154,6 +154,22 @@ export function PreviewOverlay({ ws }: { ws: WorkspaceAPI }) {
           <label style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
             <input
               type="checkbox"
+              checked={ws.realisticGloss}
+              onChange={(e) => ws.setRealisticGloss(e.target.checked)}
+            />
+            <span>Realistic Gloss</span>
+          </label>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={ws.dimLowerLayers}
+              onChange={(e) => ws.setDimLowerLayers(e.target.checked)}
+            />
+            <span>Dim Lower</span>
+          </label>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+            <input
+              type="checkbox"
               checked={!ws.hiddenFeatures.has("Travel")}
               onChange={() => ws.toggleFeatureVisibility("Travel")}
             />
@@ -175,7 +191,52 @@ export function PreviewOverlay({ ws }: { ws: WorkspaceAPI }) {
             <input type="checkbox" checked={ws.showGhost} onChange={(e) => ws.setShowGhost(e.target.checked)} />
             <span>Ghost Model</span>
           </label>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={ws.sectionCutEnabled}
+              onChange={(e) => ws.setSectionCutEnabled(e.target.checked)}
+            />
+            <span>Section Cut</span>
+          </label>
         </div>
+
+        {/* Section Cut Plane Controls (libvgcode ray-cast cut face) */}
+        {ws.sectionCutEnabled && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, padding: "6px 8px", borderRadius: 6, background: "var(--bg-stage)", border: "1px solid var(--border-subtle)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Cut Axis</span>
+              <div style={{ display: "inline-flex", gap: 3 }}>
+                {(["x", "y", "z"] as const).map((ax) => (
+                  <button
+                    key={ax}
+                    className={`btn btn-sm ${ws.sectionCutAxis === ax ? "btn-primary" : ""}`}
+                    style={{ height: 20, padding: "0 7px", fontSize: 10.5 }}
+                    onClick={() => {
+                      ws.setSectionCutAxis(ax);
+                      const idx = ax === "x" ? 0 : ax === "y" ? 1 : 2;
+                      ws.setSectionCutPosition(Number(((gcode.bounds.min[idx] + gcode.bounds.max[idx]) * 0.5).toFixed(1)));
+                    }}
+                  >
+                    {ax.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              <span className="mono" style={{ fontSize: 10.5, color: "var(--text-primary)" }}>
+                {ws.sectionCutPosition.toFixed(1)} mm
+              </span>
+            </div>
+            <input
+              type="range"
+              min={ws.sectionCutAxis === "x" ? gcode.bounds.min[0] - 2 : ws.sectionCutAxis === "y" ? gcode.bounds.min[1] - 2 : 0}
+              max={ws.sectionCutAxis === "x" ? gcode.bounds.max[0] + 2 : ws.sectionCutAxis === "y" ? gcode.bounds.max[1] + 2 : gcode.bounds.max[2] + 2}
+              step={0.5}
+              value={ws.sectionCutPosition}
+              aria-label="Section cut plane position"
+              onChange={(e) => ws.setSectionCutPosition(Number(e.target.value))}
+            />
+          </div>
+        )}
 
         {/* Feature Type Breakdown */}
         <div className="setting-group">

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   BackendHealth,
   BedType,
+  CompatibleProfilesResponse,
   FilamentSlot,
   GeometryData,
+  MachineModelInfo,
   OrcaSettingsMap,
   OrcaValue,
   ParsedGcode,
@@ -23,6 +25,7 @@ import {
   download3mf,
   downloadGcode,
   getApiConfig,
+  getCompatibleProfiles,
   getHealth,
   getJob,
   getProfileDetail,
@@ -69,7 +72,23 @@ const DEFAULT_PROCESS: ProfileRef = {
 };
 const DEFAULT_FILAMENT: ProfileRef = {
   vendor: "BBL",
-  name: "Generic PLA @BBL A1M",
+  name: "Bambu PLA Basic @BBL A1M",
+};
+const DEFAULT_A1M_MODEL: MachineModelInfo = {
+  name: "Bambu Lab A1 mini",
+  vendor: "BBL",
+  family: "BBL-3DP",
+  model_id: "N1",
+  bed_model: "bbl-3dp-A1M.stl",
+  bed_texture: "bbl-3dp-logo.svg",
+  hotend_model: "bbl-3dp-hotend.stl",
+  bed_model_url: "/v2/assets/BBL/bbl-3dp-A1M.stl",
+  bed_texture_url: "/v2/assets/BBL/bbl-3dp-logo.svg",
+  hotend_model_url: "/v2/assets/BBL/bbl-3dp-hotend.stl",
+  default_bed_type: "Textured PEI Plate",
+  not_support_bed_types: ["Cool Plate", "Engineering Plate"],
+  nozzle_diameters: ["0.4", "0.2", "0.6", "0.8"],
+  default_materials: [],
 };
 
 interface HistorySnapshot {
@@ -126,6 +145,10 @@ export function useWorkspace() {
   const [printerSettings, setPrinterSettings] = useState<OrcaSettingsMap>({});
   const [printerOverrides, setPrinterOverrides] = useState<OrcaSettingsMap>({});
   const [buildVolume, setBuildVolume] = useState<[number, number, number]>([180, 180, 180]);
+  const [bedExcludeArea, setBedExcludeArea] = useState<[number, number][]>([]);
+  const [machineModel, setMachineModel] = useState<MachineModelInfo | null>(DEFAULT_A1M_MODEL);
+  const [compatibleProfiles, setCompatibleProfiles] = useState<CompatibleProfilesResponse | null>(null);
+  const autoApplyDefaultsRef = useRef(false);
 
   const [process, setProcess] = useState<ProfileRef>(DEFAULT_PROCESS);
   const [processSettings, setProcessSettings] = useState<OrcaSettingsMap>({});
@@ -177,6 +200,11 @@ export function useWorkspace() {
   const [showSeams, setShowSeams] = useState(true);
   const [showNozzle, setShowNozzle] = useState(true);
   const [showGhost, setShowGhost] = useState(false);
+  const [realisticGloss, setRealisticGloss] = useState(true);
+  const [dimLowerLayers, setDimLowerLayers] = useState(false);
+  const [sectionCutEnabled, setSectionCutEnabled] = useState(false);
+  const [sectionCutAxis, setSectionCutAxis] = useState<"x" | "y" | "z">("y");
+  const [sectionCutPosition, setSectionCutPosition] = useState<number>(90);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playSpeed, setPlaySpeed] = useState<number>(8);
 
@@ -295,23 +323,66 @@ export function useWorkspace() {
     return () => window.clearTimeout(t);
   }, [printer, printerOverrides, process, processOverrides, bedType, filaments, flushMatrix, plates, activePlateId, backendUrl]);
 
-  // Load flattened printer profile detail whenever printer changes
+  // Load compatible profiles, machine model assets, build volume, and exclusion area whenever printer changes
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const detail = await getProfileDetail({ vendor: printer.vendor, kind: "machine", name: printer.name });
+        const compat = await getCompatibleProfiles({ vendor: printer.vendor, machine: printer.name });
         if (cancelled) return;
-        setPrinterSettings(detail.settings);
-        if (detail.build_volume_mm) {
-          setBuildVolume(detail.build_volume_mm);
+        setCompatibleProfiles(compat);
+        setPrinterSettings(compat.settings);
+        setBuildVolume(compat.build_volume_mm);
+        setBedExcludeArea(compat.bed_exclude_area_polygon || []);
+        setMachineModel(compat.machine_model || null);
+
+        if (autoApplyDefaultsRef.current) {
+          autoApplyDefaultsRef.current = false;
+          if (compat.default_print_profile) {
+            setProcess({ vendor: compat.vendor, name: compat.default_print_profile });
+            setProcessOverrides({});
+          } else if (compat.processes.length > 0) {
+            setProcess({ vendor: compat.processes[0].vendor, name: compat.processes[0].name });
+            setProcessOverrides({});
+          }
+          const defFil = compat.default_filament_profile || compat.filaments[0]?.name;
+          if (defFil) {
+            const filMatch = compat.filaments.find((f) => f.name === defFil);
+            const filVendor = filMatch?.vendor || compat.vendor;
+            setFilaments((prev) =>
+              prev.map((slot) => ({
+                ...slot,
+                profile: { vendor: filVendor, name: defFil },
+                overrides: {},
+              }))
+            );
+          }
+          const defBed = compat.machine_model?.default_bed_type as BedType | undefined;
+          if (defBed) setBedType(defBed);
+          setSliceStale(true);
         }
       } catch {
-        // Keep current defaults if offline
+        // Fallback to getProfileDetail if compatible endpoint unavailable
+        try {
+          const detail = await getProfileDetail({ vendor: printer.vendor, kind: "machine", name: printer.name });
+          if (cancelled) return;
+          setPrinterSettings(detail.settings);
+          if (detail.build_volume_mm) setBuildVolume(detail.build_volume_mm);
+          if (detail.bed_exclude_area_polygon) setBedExcludeArea(detail.bed_exclude_area_polygon);
+          if (detail.machine_model) setMachineModel(detail.machine_model);
+        } catch {
+          // Keep current defaults if offline
+        }
       }
     })();
     return () => { cancelled = true; };
   }, [printer]);
+
+  const selectPrinter = useCallback((next: ProfileRef) => {
+    autoApplyDefaultsRef.current = true;
+    setPrinter(next);
+    setPrinterOverrides({});
+  }, []);
 
   // Load flattened process profile detail whenever process changes
   useEffect(() => {
@@ -919,6 +990,8 @@ export function useWorkspace() {
       setLayerBottom(0);
       setLayerTop(maxL);
       setMoveIndex(parsed.layers[maxL]?.endSegment ?? parsed.segmentCount);
+      setSectionCutEnabled(false);
+      setSectionCutPosition(Number(((parsed.bounds.min[1] + parsed.bounds.max[1]) * 0.5).toFixed(1)));
       setIsPlaying(false);
       setSliceStale(false);
       setTab("preview");
@@ -1053,10 +1126,13 @@ export function useWorkspace() {
     processScope, setProcessScope,
     settingTab, setSettingTab,
     advancedMode, setAdvancedMode,
-    printer, setPrinter,
+    printer, setPrinter: selectPrinter,
     printerSettings,
     printerOverrides, setPrinterOverrides,
     buildVolume, setBuildVolume,
+    bedExcludeArea,
+    machineModel,
+    compatibleProfiles,
     process, setProcess,
     processSettings,
     processOverrides, setProcessOverrides,
@@ -1097,6 +1173,11 @@ export function useWorkspace() {
     showSeams, setShowSeams,
     showNozzle, setShowNozzle,
     showGhost, setShowGhost,
+    realisticGloss, setRealisticGloss,
+    dimLowerLayers, setDimLowerLayers,
+    sectionCutEnabled, setSectionCutEnabled,
+    sectionCutAxis, setSectionCutAxis,
+    sectionCutPosition, setSectionCutPosition,
     isPlaying, setIsPlaying, playSpeed, setPlaySpeed,
     toast, notify,
     allFeatureTypes: ALL_FEATURE_TYPES,

@@ -3,16 +3,23 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import type { WorkspaceAPI } from "../store/useWorkspace";
-import type { BedType, SceneObject, SubPartType } from "../types";
+import type { BedType, GcodeFeatureType, ParsedGcode, SceneObject, SubPartType } from "../types";
 import {
   computeLayOnFaceRotation,
-  getObjectMatrix,
   getObjectWorldBounds,
   groundObjectPosition,
 } from "../lib/geometry";
-import { FEATURE_COLORS, INDEX_TO_FEATURE, sampleHeatmapRGB } from "../lib/gcode";
+import { INDEX_TO_FEATURE } from "../lib/gcode";
+import { loadPrinterAssetSTL, loadPrinterAssetSVG } from "../lib/printerAssets";
+import { VGCodeRenderer } from "../lib/vgcodeRenderer";
 
-function createBedTexture(width: number, depth: number, bedType: BedType): THREE.CanvasTexture {
+function createBedTexture(
+  width: number,
+  depth: number,
+  bedType: BedType,
+  logoImg: HTMLImageElement | null,
+  excludeArea: [number, number][]
+): THREE.CanvasTexture {
   const pxPerMm = 4;
   const cw = Math.min(2048, Math.max(512, Math.round(width * pxPerMm)));
   const ch = Math.min(2048, Math.max(512, Math.round(depth * pxPerMm)));
@@ -36,12 +43,20 @@ function createBedTexture(width: number, depth: number, bedType: BedType): THREE
 
   // Subtle PEI speckle texture
   if (bedType.includes("Textured")) {
-    ctx.fillStyle = "rgba(255,255,255,0.025)";
-    for (let i = 0; i < 3200; i++) {
-      const rx = ((i * 7919) % 10000) / 10000 * cw;
-      const ry = ((i * 6271) % 10000) / 10000 * ch;
+    ctx.fillStyle = "rgba(255,255,255,0.028)";
+    for (let i = 0; i < 3600; i++) {
+      const rx = (((i * 7919) % 10000) / 10000) * cw;
+      const ry = (((i * 6271) % 10000) / 10000) * ch;
       ctx.fillRect(rx, ry, 2, 2);
     }
+  }
+
+  // Official vendor SVG silkscreen texture (e.g. bbl-3dp-logo.svg)
+  if (logoImg) {
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.drawImage(logoImg, 0, 0, cw, ch);
+    ctx.restore();
   }
 
   // Minor 10mm grid + Major 50mm grid
@@ -64,6 +79,45 @@ function createBedTexture(width: number, depth: number, bedType: BedType): THREE
     ctx.moveTo(0, py);
     ctx.lineTo(cw, py);
     ctx.stroke();
+  }
+
+  // Official printer bed exclusion area (e.g. Bambu Lab P1S front-left 18x28mm filament cutter zone)
+  if (excludeArea.length >= 3) {
+    ctx.save();
+    ctx.beginPath();
+    excludeArea.forEach(([ex, ey], idx) => {
+      const px = (ex / width) * cw;
+      const py = ch - (ey / depth) * ch;
+      if (idx === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    ctx.closePath();
+    ctx.fillStyle = "rgba(239, 68, 68, 0.22)";
+    ctx.fill();
+    ctx.clip();
+    ctx.strokeStyle = "rgba(248, 113, 113, 0.55)";
+    ctx.lineWidth = 2;
+    for (let d = -ch; d < cw + ch; d += 12) {
+      ctx.beginPath();
+      ctx.moveTo(d, 0);
+      ctx.lineTo(d + ch, ch);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    excludeArea.forEach(([ex, ey], idx) => {
+      const px = (ex / width) * cw;
+      const py = ch - (ey / depth) * ch;
+      if (idx === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    ctx.closePath();
+    ctx.strokeStyle = "rgba(248, 113, 113, 0.78)";
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.restore();
   }
 
   // Outer border
@@ -185,6 +239,9 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
   const modelsGroupRef = useRef<THREE.Group | null>(null);
   const overlayGroupRef = useRef<THREE.Group | null>(null);
   const gcodeGroupRef = useRef<THREE.Group | null>(null);
+  const gcodeExtrasGroupRef = useRef<THREE.Group | null>(null);
+  const vgRendererRef = useRef<{ gcode: ParsedGcode; renderer: VGCodeRenderer } | null>(null);
+  const hotendGeomRef = useRef<THREE.BufferGeometry | null>(null);
   const objectMeshMapRef = useRef<Map<string, THREE.Mesh>>(new Map());
 
   // Keep latest ws ref for DOM event handlers
@@ -273,11 +330,13 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
     const modelsGroup = new THREE.Group();
     const overlayGroup = new THREE.Group();
     const gcodeGroup = new THREE.Group();
-    scene.add(bedGroup, modelsGroup, overlayGroup, gcodeGroup);
+    const gcodeExtrasGroup = new THREE.Group();
+    scene.add(bedGroup, modelsGroup, overlayGroup, gcodeGroup, gcodeExtrasGroup);
     bedGroupRef.current = bedGroup;
     modelsGroupRef.current = modelsGroup;
     overlayGroupRef.current = overlayGroup;
     gcodeGroupRef.current = gcodeGroup;
+    gcodeExtrasGroupRef.current = gcodeExtrasGroup;
 
     // Resize observer
     const ro = new ResizeObserver(() => {
@@ -469,6 +528,10 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
     return () => {
       cancelAnimationFrame(rafId);
       ro.disconnect();
+      if (vgRendererRef.current) {
+        vgRendererRef.current.renderer.dispose();
+        vgRendererRef.current = null;
+      }
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
@@ -480,67 +543,149 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
     };
   }, []);
 
-  // Rebuild Printer Build Plate & Volume Cage whenever buildVolume or bedType changes
+  // Load official 3D hotend STL mesh whenever printer model changes
+  useEffect(() => {
+    let cancelled = false;
+    const url = ws.machineModel?.hotend_model_url;
+    if (!url) {
+      hotendGeomRef.current = null;
+      return;
+    }
+    loadPrinterAssetSTL(url).then((geom) => {
+      if (!cancelled) hotendGeomRef.current = geom;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ws.machineModel?.hotend_model_url]);
+
+  // Rebuild Printer Build Plate (official STL bed model + official SVG silkscreen + exclusion area + volume cage)
   useEffect(() => {
     const group = bedGroupRef.current;
     if (!group) return;
-    while (group.children.length) {
-      const c = group.children.pop()!;
-      c.traverse((n) => {
-        if ((n as THREE.Mesh).geometry) (n as THREE.Mesh).geometry.dispose();
-        const m = (n as THREE.Mesh).material;
-        if (Array.isArray(m)) m.forEach((x) => x.dispose());
-        else if (m) m.dispose();
+    let cancelled = false;
+
+    const clearBedGroup = () => {
+      while (group.children.length) {
+        const c = group.children.pop()!;
+        c.traverse((n) => {
+          const mesh = n as THREE.Mesh;
+          if (mesh.geometry && !mesh.userData?.sharedAsset) mesh.geometry.dispose();
+          const m = mesh.material;
+          if (Array.isArray(m)) m.forEach((x) => {
+            if ((x as THREE.MeshStandardMaterial).map) (x as THREE.MeshStandardMaterial).map!.dispose();
+            x.dispose();
+          });
+          else if (m) {
+            if ((m as THREE.MeshStandardMaterial).map) (m as THREE.MeshStandardMaterial).map!.dispose();
+            m.dispose();
+          }
+        });
+      }
+    };
+
+    const [bw, bd, bh] = ws.buildVolume;
+    const bedModelUrl = ws.machineModel?.bed_model_url || null;
+    const bedTextureUrl = ws.machineModel?.bed_texture_url || null;
+    const excludeArea = ws.bedExcludeArea || [];
+
+    const buildPlate = (bedStlGeom: THREE.BufferGeometry | null, logoImg: HTMLImageElement | null) => {
+      if (cancelled) return;
+      clearBedGroup();
+
+      // Official 3D printer build plate STL (e.g. bbl-3dp-A1M.stl, bbl-3dp-X1.stl) with real front tab & rear alignment ears
+      if (bedStlGeom) {
+        const stlMat = new THREE.MeshStandardMaterial({
+          color: ws.bedType.includes("Textured") ? "#302a22" : "#252a34",
+          roughness: ws.bedType.includes("Textured") ? 0.68 : 0.38,
+          metalness: 0.38,
+          polygonOffset: true,
+          polygonOffsetFactor: 2,
+          polygonOffsetUnits: 2,
+        });
+        const stlMesh = new THREE.Mesh(bedStlGeom, stlMat);
+        stlMesh.position.set(0, 0, -0.05);
+        stlMesh.userData = { sharedAsset: true };
+        group.add(stlMesh);
+
+        // Subtle metallic chassis underside rim below the spring-steel PEI sheet
+        const chassis = new THREE.Mesh(
+          new THREE.BoxGeometry(bw + 2, bd + 2, 2.0),
+          new THREE.MeshStandardMaterial({ color: "#12141a", roughness: 0.75, metalness: 0.35 })
+        );
+        chassis.position.set(bw / 2, bd / 2, -1.65);
+        group.add(chassis);
+      } else {
+        const plateBase = new THREE.Mesh(
+          new THREE.BoxGeometry(bw + 4, bd + 4, 2.2),
+          new THREE.MeshStandardMaterial({ color: "#15171c", roughness: 0.7, metalness: 0.3 })
+        );
+        plateBase.position.set(bw / 2, bd / 2, -1.25);
+        group.add(plateBase);
+      }
+
+      // Printable surface overlay (grid + official vendor SVG logo + bed type texture + exclusion zone)
+      const tex = createBedTexture(bw, bd, ws.bedType, logoImg, excludeArea);
+      const bedGeo = new THREE.PlaneGeometry(bw, bd);
+      const bedMat = new THREE.MeshStandardMaterial({
+        map: tex,
+        roughness: ws.bedType.includes("Textured") ? 0.84 : 0.44,
+        metalness: 0.14,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
+      });
+      const bedMesh = new THREE.Mesh(bedGeo, bedMat);
+      bedMesh.position.set(bw / 2, bd / 2, -0.02);
+      group.add(bedMesh);
+
+      // Build volume wireframe cage
+      const boxEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(bw, bd, bh));
+      const cage = new THREE.LineSegments(
+        boxEdges,
+        new THREE.LineBasicMaterial({ color: "#323846", transparent: true, opacity: 0.55 })
+      );
+      cage.position.set(bw / 2, bd / 2, bh / 2);
+      group.add(cage);
+
+      // Origin XYZ axes triad (24mm)
+      const addAxis = (to: [number, number, number], hex: string) => {
+        const g = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0.2),
+          new THREE.Vector3(to[0], to[1], to[2] + 0.2),
+        ]);
+        group.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: hex })));
+      };
+      addAxis([24, 0, 0], "#ef4444");
+      addAxis([0, 24, 0], "#22c55e");
+      addAxis([0, 0, 24], "#3b82f6");
+
+      // Re-aim and scale camera distance cleanly when build volume changes
+      if (controlsRef.current && cameraRef.current) {
+        const cx = bw / 2;
+        const cy = bd / 2;
+        const dist = Math.max(bw, bd) * 1.48;
+        controlsRef.current.target.set(cx, cy, Math.min(20, bh * 0.1));
+        cameraRef.current.position.set(cx + dist * 0.72, cy - dist * 0.88, dist * 0.66);
+        controlsRef.current.update();
+      }
+    };
+
+    // Draw immediately with fallback, then upgrade seamlessly once STL/SVG resolve (usually <5ms cached)
+    buildPlate(null, null);
+    if (bedModelUrl || bedTextureUrl) {
+      Promise.all([
+        bedModelUrl ? loadPrinterAssetSTL(bedModelUrl) : Promise.resolve(null),
+        bedTextureUrl ? loadPrinterAssetSVG(bedTextureUrl) : Promise.resolve(null),
+      ]).then(([stlGeom, svgImg]) => {
+        buildPlate(stlGeom, svgImg);
       });
     }
 
-    const [bw, bd, bh] = ws.buildVolume;
-    const tex = createBedTexture(bw, bd, ws.bedType);
-    const bedGeo = new THREE.PlaneGeometry(bw, bd);
-    const bedMat = new THREE.MeshStandardMaterial({
-      map: tex,
-      roughness: ws.bedType.includes("Textured") ? 0.85 : 0.45,
-      metalness: 0.12,
-    });
-    const bedMesh = new THREE.Mesh(bedGeo, bedMat);
-    bedMesh.position.set(bw / 2, bd / 2, -0.08);
-    group.add(bedMesh);
-
-    // Subtle underside plate thickness
-    const plateBase = new THREE.Mesh(
-      new THREE.BoxGeometry(bw + 4, bd + 4, 2.2),
-      new THREE.MeshStandardMaterial({ color: "#15171c", roughness: 0.7, metalness: 0.3 })
-    );
-    plateBase.position.set(bw / 2, bd / 2, -1.25);
-    group.add(plateBase);
-
-    // Build volume wireframe cage
-    const boxEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(bw, bd, bh));
-    const cage = new THREE.LineSegments(
-      boxEdges,
-      new THREE.LineBasicMaterial({ color: "#323846", transparent: true, opacity: 0.55 })
-    );
-    cage.position.set(bw / 2, bd / 2, bh / 2);
-    group.add(cage);
-
-    // Origin XYZ axes triad (24mm)
-    const addAxis = (to: [number, number, number], hex: string) => {
-      const g = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0.2),
-        new THREE.Vector3(to[0], to[1], to[2] + 0.2),
-      ]);
-      group.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: hex })));
+    return () => {
+      cancelled = true;
     };
-    addAxis([24, 0, 0], "#ef4444");
-    addAxis([0, 24, 0], "#22c55e");
-    addAxis([0, 0, 24], "#3b82f6");
-
-    // Re-aim camera target gently to bed center
-    if (controlsRef.current) {
-      controlsRef.current.target.set(bw / 2, bd / 2, Math.min(24, bh * 0.12));
-      controlsRef.current.update();
-    }
-  }, [ws.buildVolume, ws.bedType]);
+  }, [ws.buildVolume, ws.bedType, ws.machineModel?.bed_model_url, ws.machineModel?.bed_texture_url, ws.bedExcludeArea]);
 
   // Rebuild Prepare 3D Models + SubParts + TransformControls + Cut Plane + Measure Line
   useEffect(() => {
@@ -723,122 +868,83 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
     ws.showGhost,
   ]);
 
-  // Rebuild Preview G-code Toolpaths, Seams, Retractions, and Animated Nozzle Head
+  // Rebuild Preview G-code Toolpaths via direct WebGL2 port of OrcaSlicer's libvgcode volumetric renderer
   useEffect(() => {
     const group = gcodeGroupRef.current;
-    if (!group) return;
-    while (group.children.length) {
-      const c = group.children.pop()!;
+    const extras = gcodeExtrasGroupRef.current;
+    if (!group || !extras) return;
+
+    // Clear per-update overlays (seams, retractions, nozzle, section cut guide) without touching cached VGCodeRenderer
+    while (extras.children.length) {
+      const c = extras.children.pop()!;
       c.traverse((n) => {
-        if ((n as THREE.Mesh).geometry) (n as THREE.Mesh).geometry.dispose();
-        const m = (n as THREE.Mesh).material;
+        const mesh = n as THREE.Mesh;
+        if (mesh.geometry && !mesh.userData?.sharedAsset) mesh.geometry.dispose();
+        const m = mesh.material;
         if (Array.isArray(m)) m.forEach((x) => x.dispose());
         else if (m) m.dispose();
       });
     }
 
-    if (ws.tab !== "preview" || !ws.parsedGcode) return;
+    if (ws.tab !== "preview" || !ws.parsedGcode) {
+      group.visible = false;
+      return;
+    }
+
     const g = ws.parsedGcode;
-    const maxSeg = Math.min(g.segmentCount, Math.max(0, ws.moveIndex));
-    if (maxSeg === 0) return;
+    group.visible = true;
 
-    const featureColorCache = INDEX_TO_FEATURE.map((f) => new THREE.Color(FEATURE_COLORS[f] || "#94a3b8"));
-    const filamentColorCache = ws.filaments.map((f) => new THREE.Color(f.color));
-    const hiddenMask = INDEX_TO_FEATURE.map((f) => ws.hiddenFeatures.has(f));
-
-    // Count visible segments first for tight buffer allocation
-    let visCount = 0;
-    for (let i = 0; i < maxSeg; i++) {
-      const l = g.layersArr[i];
-      if (l < ws.layerBottom || l > ws.layerTop) continue;
-      if (hiddenMask[g.features[i]]) continue;
-      visCount++;
-    }
-
-    if (visCount > 0) {
-      const positions = new Float32Array(visCount * 6);
-      const colors = new Float32Array(visCount * 6);
-      let ptr = 0;
-      const [minSpd, maxSpd] = g.ranges.speed;
-      const [minFlw, maxFlw] = g.ranges.flow;
-      const [minLH, maxLH] = g.ranges.layerHeight;
-      const [minLW, maxLW] = g.ranges.lineWidth;
-      const [minT, maxT] = g.ranges.temp;
-
-      for (let i = 0; i < maxSeg; i++) {
-        const l = g.layersArr[i];
-        if (l < ws.layerBottom || l > ws.layerTop) continue;
-        const featIdx = g.features[i];
-        if (hiddenMask[featIdx]) continue;
-
-        const i3 = i * 3;
-        positions[ptr] = g.starts[i3];
-        positions[ptr + 1] = g.starts[i3 + 1];
-        positions[ptr + 2] = g.starts[i3 + 2];
-        positions[ptr + 3] = g.ends[i3];
-        positions[ptr + 4] = g.ends[i3 + 1];
-        positions[ptr + 5] = g.ends[i3 + 2];
-
-        let r = 0.8, gr = 0.8, b = 0.8;
-        const isTravel = INDEX_TO_FEATURE[featIdx] === "Travel";
-        if (isTravel) {
-          r = 0.22; gr = 0.74; b = 0.97;
-        } else if (ws.colorScheme === "line_type") {
-          const c = featureColorCache[featIdx];
-          r = c.r; gr = c.g; b = c.b;
-        } else if (ws.colorScheme === "filament") {
-          const c = filamentColorCache[g.filaments[i]] || filamentColorCache[0];
-          r = c.r; gr = c.g; b = c.b;
-        } else if (ws.colorScheme === "speed") {
-          [r, gr, b] = sampleHeatmapRGB((g.speeds[i] - minSpd) / Math.max(1e-3, maxSpd - minSpd));
-        } else if (ws.colorScheme === "flow") {
-          [r, gr, b] = sampleHeatmapRGB((g.flows[i] - minFlw) / Math.max(1e-3, maxFlw - minFlw));
-        } else if (ws.colorScheme === "layer_height") {
-          [r, gr, b] = sampleHeatmapRGB((g.layerHeights[i] - minLH) / Math.max(1e-3, maxLH - minLH));
-        } else if (ws.colorScheme === "line_width") {
-          [r, gr, b] = sampleHeatmapRGB((g.lineWidths[i] - minLW) / Math.max(1e-3, maxLW - minLW));
-        } else if (ws.colorScheme === "fan_speed") {
-          [r, gr, b] = sampleHeatmapRGB(g.fanSpeeds[i] / 100);
-        } else if (ws.colorScheme === "temperature") {
-          [r, gr, b] = sampleHeatmapRGB((g.temps[i] - minT) / Math.max(1e-3, maxT - minT));
-        }
-
-        // Slightly highlight top active layer
-        if (l === ws.layerTop && !isTravel) {
-          r = Math.min(1, r * 1.15);
-          gr = Math.min(1, gr * 1.15);
-          b = Math.min(1, b * 1.15);
-        }
-
-        colors[ptr] = r; colors[ptr + 1] = gr; colors[ptr + 2] = b;
-        colors[ptr + 3] = r; colors[ptr + 4] = gr; colors[ptr + 5] = b;
-        ptr += 6;
+    // Create or reuse GPU VGCodeRenderer for this ParsedGcode (textures stay resident on GPU!)
+    if (!vgRendererRef.current || vgRendererRef.current.gcode !== g) {
+      if (vgRendererRef.current) {
+        group.remove(vgRendererRef.current.renderer.group);
+        vgRendererRef.current.renderer.dispose();
       }
-
-      const lineGeo = new THREE.BufferGeometry();
-      lineGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      lineGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-      const lines = new THREE.LineSegments(
-        lineGeo,
-        new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.96 })
-      );
-      group.add(lines);
+      const vg = new VGCodeRenderer(g);
+      vgRendererRef.current = { gcode: g, renderer: vg };
+      group.add(vg.group);
     }
+
+    const maxSeg = Math.min(g.segmentCount, Math.max(0, ws.moveIndex));
+    vgRendererRef.current.renderer.update({
+      layerBottom: ws.layerBottom,
+      layerTop: ws.layerTop,
+      moveIndex: maxSeg,
+      hiddenFeatures: ws.hiddenFeatures as Set<GcodeFeatureType>,
+      colorScheme: ws.colorScheme,
+      filaments: ws.filaments,
+      realisticGloss: ws.realisticGloss,
+      dimLowerLayers: ws.dimLowerLayers,
+      sectionCutEnabled: ws.sectionCutEnabled,
+      sectionCutAxis: ws.sectionCutAxis,
+      sectionCutPosition: ws.sectionCutPosition,
+    });
+
+    if (maxSeg === 0) return;
 
     const topZ = g.layers[ws.layerTop]?.z ?? Infinity;
     const botZ = g.layers[ws.layerBottom]?.z ?? 0;
+
+    const passesSectionCut = (px: number, py: number, pz: number) => {
+      if (!ws.sectionCutEnabled) return true;
+      if (ws.sectionCutAxis === "x") return px <= ws.sectionCutPosition + 0.05;
+      if (ws.sectionCutAxis === "y") return py >= ws.sectionCutPosition - 0.05;
+      return pz <= ws.sectionCutPosition + 0.05;
+    };
 
     // Z-Seam markers
     if (ws.showSeams && g.seams.length >= 3) {
       const pts: number[] = [];
       for (let i = 0; i < g.seams.length; i += 3) {
-        const z = g.seams[i + 2];
-        if (z >= botZ - 0.05 && z <= topZ + 0.05) pts.push(g.seams[i], g.seams[i + 1], z);
+        const sx = g.seams[i], sy = g.seams[i + 1], sz = g.seams[i + 2];
+        if (sz >= botZ - 0.05 && sz <= topZ + 0.05 && passesSectionCut(sx, sy, sz)) {
+          pts.push(sx, sy, sz);
+        }
       }
       if (pts.length) {
         const pg = new THREE.BufferGeometry();
         pg.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
-        group.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: "#ffffff", size: 2.2, sizeAttenuation: true })));
+        extras.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: "#ffffff", size: 2.2, sizeAttenuation: true })));
       }
     }
 
@@ -846,28 +952,87 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
     if (ws.showRetractions && g.retractions.length >= 3) {
       const pts: number[] = [];
       for (let i = 0; i < g.retractions.length; i += 3) {
-        const z = g.retractions[i + 2];
-        if (z >= botZ - 0.05 && z <= topZ + 0.05) pts.push(g.retractions[i], g.retractions[i + 1], z);
+        const rx = g.retractions[i], ry = g.retractions[i + 1], rz = g.retractions[i + 2];
+        if (rz >= botZ - 0.05 && rz <= topZ + 0.05 && passesSectionCut(rx, ry, rz)) {
+          pts.push(rx, ry, rz);
+        }
       }
       if (pts.length) {
         const pg = new THREE.BufferGeometry();
         pg.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
-        group.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: "#38bdf8", size: 2.4, sizeAttenuation: true })));
+        extras.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: "#38bdf8", size: 2.4, sizeAttenuation: true })));
       }
     }
 
-    // Animated Extruder Nozzle Head
-    if (ws.showNozzle && maxSeg > 0) {
-      const last = (maxSeg - 1) * 3;
-      const nx = g.ends[last], ny = g.ends[last + 1], nz = g.ends[last + 2];
-      const cone = new THREE.ConeGeometry(2.6, 8, 16);
-      cone.rotateX(-Math.PI / 2); // tip at -Z
-      const nozzle = new THREE.Mesh(
-        cone,
-        new THREE.MeshStandardMaterial({ color: "#d97706", metalness: 0.75, roughness: 0.25 })
+    // Section Cut Plane visual guide
+    if (ws.sectionCutEnabled) {
+      const bMin = g.bounds.min;
+      const bMax = g.bounds.max;
+      const pad = 10;
+      const sx = Math.max(20, bMax[0] - bMin[0] + pad * 2);
+      const sy = Math.max(20, bMax[1] - bMin[1] + pad * 2);
+      const sz = Math.max(12, bMax[2] - bMin[2] + pad);
+      const cx = (bMin[0] + bMax[0]) * 0.5;
+      const cy = (bMin[1] + bMax[1]) * 0.5;
+      const cz = Math.max(sz * 0.5, (bMin[2] + bMax[2]) * 0.5);
+      const planeW = ws.sectionCutAxis === "x" ? sy : sx;
+      const planeH = ws.sectionCutAxis === "z" ? sy : sz;
+      const planeGeom = new THREE.PlaneGeometry(planeW, planeH);
+      const cutFrame = new THREE.LineSegments(
+        new THREE.EdgesGeometry(planeGeom),
+        new THREE.LineBasicMaterial({ color: "#38bdf8", transparent: true, opacity: 0.75 })
       );
-      nozzle.position.set(nx, ny, nz + 4.1);
-      group.add(nozzle);
+      planeGeom.dispose();
+      if (ws.sectionCutAxis === "x") {
+        cutFrame.rotation.set(Math.PI / 2, Math.PI / 2, 0);
+        cutFrame.position.set(ws.sectionCutPosition, cy, cz);
+      } else if (ws.sectionCutAxis === "y") {
+        cutFrame.rotation.set(Math.PI / 2, 0, 0);
+        cutFrame.position.set(cx, ws.sectionCutPosition, cz);
+      } else {
+        cutFrame.position.set(cx, cy, ws.sectionCutPosition);
+      }
+      extras.add(cutFrame);
+    }
+
+    // Animated Extruder Nozzle Head (official Bambu Lab bbl-3dp-hotend.stl when available)
+    if (ws.showNozzle && maxSeg > 0) {
+      // Find last extruded (non-Travel, non-Custom) move within active layer range so end-G-code park doesn't lift nozzle to Z=100
+      const travelIdx = INDEX_TO_FEATURE.indexOf("Travel");
+      const customIdx = INDEX_TO_FEATURE.indexOf("Custom");
+      let nozzleSeg = maxSeg - 1;
+      for (let i = maxSeg - 1; i >= 0; i--) {
+        const l = g.layersArr[i];
+        if (l < ws.layerBottom || l > ws.layerTop) continue;
+        const fi = g.features[i];
+        if (fi !== travelIdx && fi !== customIdx) {
+          nozzleSeg = i;
+          break;
+        }
+      }
+      const last = nozzleSeg * 3;
+      const nx = g.ends[last], ny = g.ends[last + 1], nz = g.ends[last + 2];
+      const hotendGeom = hotendGeomRef.current;
+      if (hotendGeom) {
+        const nozzle = new THREE.Mesh(
+          hotendGeom,
+          new THREE.MeshStandardMaterial({ color: "#e2e8f0", metalness: 0.72, roughness: 0.22 })
+        );
+        // Official bbl-3dp-hotend.stl has nozzle tip at Z=+12 and heatsink at Z=0; flip so tip points down onto bead
+        nozzle.rotation.set(Math.PI, 0, 0);
+        nozzle.position.set(nx, ny, nz + 12.15);
+        nozzle.userData = { sharedAsset: true };
+        extras.add(nozzle);
+      } else {
+        const cone = new THREE.ConeGeometry(2.6, 8, 16);
+        cone.rotateX(-Math.PI / 2);
+        const nozzle = new THREE.Mesh(
+          cone,
+          new THREE.MeshStandardMaterial({ color: "#d97706", metalness: 0.75, roughness: 0.25 })
+        );
+        nozzle.position.set(nx, ny, nz + 4.1);
+        extras.add(nozzle);
+      }
     }
   }, [
     ws.tab,
@@ -881,6 +1046,11 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
     ws.showSeams,
     ws.showRetractions,
     ws.showNozzle,
+    ws.realisticGloss,
+    ws.dimLowerLayers,
+    ws.sectionCutEnabled,
+    ws.sectionCutAxis,
+    ws.sectionCutPosition,
   ]);
 
   // Camera presets
@@ -888,11 +1058,24 @@ export function Viewport3D({ ws }: { ws: WorkspaceAPI }) {
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
     if (!cam || !ctrl) return;
+    if (preset === "fit" && ws.tab === "preview" && ws.parsedGcode) {
+      const bMin = ws.parsedGcode.bounds.min;
+      const bMax = ws.parsedGcode.bounds.max;
+      const cx = (bMin[0] + bMax[0]) * 0.5;
+      const cy = (bMin[1] + bMax[1]) * 0.5;
+      const cz = (bMin[2] + bMax[2]) * 0.5;
+      const span = Math.max(18, bMax[0] - bMin[0], bMax[1] - bMin[1], bMax[2] - bMin[2]);
+      const dist = span * 1.95;
+      ctrl.target.set(cx, cy, cz);
+      cam.position.set(cx + dist * 0.62, cy - dist * 0.88, cz + dist * 0.62);
+      ctrl.update();
+      return;
+    }
     const [bw, bd] = ws.buildVolume;
     const cx = bw / 2, cy = bd / 2;
-    const dist = Math.max(bw, bd) * 1.45;
+    const dist = Math.max(bw, bd) * 1.48;
     ctrl.target.set(cx, cy, 18);
-    if (preset === "iso" || preset === "fit") cam.position.set(cx + dist * 0.72, cy - dist * 0.85, dist * 0.65);
+    if (preset === "iso" || preset === "fit") cam.position.set(cx + dist * 0.72, cy - dist * 0.88, dist * 0.66);
     else if (preset === "top") cam.position.set(cx, cy - 0.5, dist * 1.35);
     else if (preset === "front") cam.position.set(cx, cy - dist * 1.2, 42);
     else if (preset === "right") cam.position.set(cx + dist * 1.2, cy, 42);
